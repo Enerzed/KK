@@ -8,15 +8,21 @@ TScanner::TScanner(std::string fileName)
 }
 
 
+TScanner::~TScanner()
+{
+	breakLinePositions.clear();
+}
+
+
 TypeLex keyword[MAX_KEYWORD] =
 {
-	"int", "short", "long", "__int64", "char", "if", "else", "main", "void"
+	"int", "short", "long", "__int64", "char", "if", "else", "void"
 };
 
 
 int indexKeyword[MAX_KEYWORD] =
 {
-	TInt, TShort, TLong, T__Int64, TChar, TIf, TElse, TMain, TVoid
+	TInt, TShort, TLong, T__Int64, TChar, TIf, TElse, TVoid
 };
 
 
@@ -64,7 +70,8 @@ int TScanner::Scanner(TypeLex lex)
 	int i = 0;
 	lex[0] = '\0';
 start:
-	while (text[pointer] == ' ' || text[pointer] == '\t' || text[pointer] == '\n') {
+	while (text[pointer] == ' ' || text[pointer] == '\t' || text[pointer] == '\n') 
+	{
 		if (text[pointer] == '\n')
 			if (std::find(breakLinePositions.begin(), breakLinePositions.end(), pointer) == breakLinePositions.end())
 			{
@@ -147,135 +154,135 @@ start:
 			}
 			return TConst16;
 		}
+	}
 
-		// Decimal constants
-		if (isdigit(text[pointer]))
-		{
-			while (isdigit(text[pointer]) && i < MAX_DEC_LEX - 1)
-			{ // Added length check
-				lex[i++] = text[pointer++];
-			}
-			lex[i] = '\0';
-			if (i == MAX_DEC_LEX - 1 && isdigit(text[pointer]))
-			{
-				while (isdigit(text[pointer]))
-					pointer++;
-				PrintError("Decimal constant exceeds maximum lexeme length", lex);
-				return TErr;
-			}
-			return TConst10;
+	// Decimal constants
+	if (isdigit(text[pointer]))
+	{
+		while (isdigit(text[pointer]) && i < MAX_DEC_LEX - 1)
+		{ // Added length check
+			lex[i++] = text[pointer++];
 		}
-
-		// Identifiers
-		if (isalpha(text[pointer]) || text[pointer] == '_')
+		lex[i] = '\0';
+		if (i == MAX_DEC_LEX - 1 && isdigit(text[pointer]))
 		{
-			while ((isalnum(text[pointer]) || text[pointer] == '_') && i < MAX_LEX - 1)
-			{ // Added length check
-				lex[i++] = text[pointer++];
-			}
-			lex[i] = '\0';
-			if (i == MAX_LEX - 1 && (isalnum(text[pointer]) || text[pointer] == '_'))
-			{
-				while (isalnum(text[pointer]) || text[pointer] == '_')
-					pointer++;
-				PrintError("Identifier exceeds maximum lexeme length", lex);
-				return TErr;
-			}
-
-			for (int j = 0; j < MAX_KEYWORD; j++)
-			{
-				if (strcmp(lex, keyword[j]) == 0)
-				{
-					return indexKeyword[j];
-				}
-			}
-			return TIdent;
-		}
-
-		// Operators
-		switch (text[pointer])
-		{
-		case ',': pointer++; lex[i++] = ','; lex[i] = '\0'; return TComma;
-		case ';': pointer++; lex[i++] = ';'; lex[i] = '\0'; return TSemicolon;
-		case '(': pointer++; lex[i++] = '('; lex[i] = '\0'; return TLeftBracket;
-		case ')': pointer++; lex[i++] = ')'; lex[i] = '\0'; return TRightBracket;
-		case '{': pointer++; lex[i++] = '{'; lex[i] = '\0'; return TLeftBrace;
-		case '}': pointer++; lex[i++] = '}'; lex[i] = '\0'; return TRightBrace;
-		case '[': pointer++; lex[i++] = '['; lex[i] = '\0'; return TLeftSquareBracket;
-		case ']': pointer++; lex[i++] = ']'; lex[i] = '\0'; return TRightSquareBracket;
-		case '+': pointer++; lex[i++] = '+'; lex[i] = '\0'; return TAdd;
-		case '-': pointer++; lex[i++] = '-'; lex[i] = '\0'; return TSub;
-		case '*': pointer++; lex[i++] = '*'; lex[i] = '\0'; return TMul;
-		case '%': pointer++; lex[i++] = '%'; lex[i] = '\0'; return TMod;
-		case '=':
-			pointer++;
-			lex[i++] = '=';
-			if (text[pointer] == '=')
-			{
+			while (isdigit(text[pointer]))
 				pointer++;
-				lex[i++] = '=';
-				lex[i] = '\0';
-				return TEq;
-			}
-			else
-			{
-				lex[i] = '\0';
-				return TEval;
-			}
-		case '!':
-			pointer++;
-			lex[i++] = '!';
-			if (text[pointer] == '=')
-			{
-				pointer++;
-				lex[i++] = '=';
-				lex[i] = '\0';
-				return TNe;
-			}
-			// Not implementing NOT operation
-			else
-			{
-				lex[i] = '\0';
-				PrintError("Unexpected token", lex);
-				return TErr;
-			}
-		case '>':
-			pointer++;
-			lex[i++] = '>';
-			if (text[pointer] == '=')
-			{
-				pointer++;
-				lex[i++] = '=';
-				lex[i] = '\0';
-				return TGe;
-			}
-			else
-			{
-				lex[i] = '\0';
-				return TGt;
-			}
-		case '<':
-			pointer++;
-			lex[i++] = '<';
-			if (text[pointer] == '=')
-			{
-				pointer++;
-				lex[i++] = '=';
-				lex[i] = '\0';
-				return TLe;
-			}
-			else
-			{
-				lex[i] = '\0';
-				return TLt;
-			}
-		default:
-			lex[i++] = text[pointer];
-			lex[i] = '\0';
-			PrintError("Lexical error at", lex);
-			pointer++;
+			PrintError("Decimal constant exceeds maximum lexeme length", lex);
 			return TErr;
 		}
+		return TConst10;
+	}
+
+	// Identifiers
+	if (isalpha(text[pointer]) || text[pointer] == '_')
+	{
+		while ((isalnum(text[pointer]) || text[pointer] == '_') && i < MAX_LEX - 1)
+		{ // Added length check
+			lex[i++] = text[pointer++];
+		}
+		lex[i] = '\0';
+		if (i == MAX_LEX - 1 && (isalnum(text[pointer]) || text[pointer] == '_'))
+		{
+			while (isalnum(text[pointer]) || text[pointer] == '_')
+				pointer++;
+			PrintError("Identifier exceeds maximum lexeme length", lex);
+			return TErr;
+		}
+
+		for (int j = 0; j < MAX_KEYWORD; j++)
+		{
+			if (strcmp(lex, keyword[j]) == 0)
+			{
+				return indexKeyword[j];
+			}
+		}
+		return TIdent;
+	}
+
+	// Operators
+	switch (text[pointer])
+	{
+	case ',': pointer++; lex[i++] = ','; lex[i] = '\0'; return TComma;
+	case ';': pointer++; lex[i++] = ';'; lex[i] = '\0'; return TSemicolon;
+	case '(': pointer++; lex[i++] = '('; lex[i] = '\0'; return TLeftBracket;
+	case ')': pointer++; lex[i++] = ')'; lex[i] = '\0'; return TRightBracket;
+	case '{': pointer++; lex[i++] = '{'; lex[i] = '\0'; return TLeftBrace;
+	case '}': pointer++; lex[i++] = '}'; lex[i] = '\0'; return TRightBrace;
+	case '[': pointer++; lex[i++] = '['; lex[i] = '\0'; return TLeftSquareBracket;
+	case ']': pointer++; lex[i++] = ']'; lex[i] = '\0'; return TRightSquareBracket;
+	case '+': pointer++; lex[i++] = '+'; lex[i] = '\0'; return TAdd;
+	case '-': pointer++; lex[i++] = '-'; lex[i] = '\0'; return TSub;
+	case '*': pointer++; lex[i++] = '*'; lex[i] = '\0'; return TMul;
+	case '%': pointer++; lex[i++] = '%'; lex[i] = '\0'; return TMod;
+	case '=':
+		pointer++;
+		lex[i++] = '=';
+		if (text[pointer] == '=')
+		{
+			pointer++;
+			lex[i++] = '=';
+			lex[i] = '\0';
+			return TEq;
+		}
+		else
+		{
+			lex[i] = '\0';
+			return TEval;
+		}
+	case '!':
+		pointer++;
+		lex[i++] = '!';
+		if (text[pointer] == '=')
+		{
+			pointer++;
+			lex[i++] = '=';
+			lex[i] = '\0';
+			return TNe;
+		}
+		// Not implementing NOT operation
+		else
+		{
+			lex[i] = '\0';
+			PrintError("Unexpected token", lex);
+			return TErr;
+		}
+	case '>':
+		pointer++;
+		lex[i++] = '>';
+		if (text[pointer] == '=')
+		{
+			pointer++;
+			lex[i++] = '=';
+			lex[i] = '\0';
+			return TGe;
+		}
+		else
+		{
+			lex[i] = '\0';
+			return TGt;
+		}
+	case '<':
+		pointer++;
+		lex[i++] = '<';
+		if (text[pointer] == '=')
+		{
+			pointer++;
+			lex[i++] = '=';
+			lex[i] = '\0';
+			return TLe;
+		}
+		else
+		{
+			lex[i] = '\0';
+			return TLt;
+		}
+	default:
+		lex[i++] = text[pointer];
+		lex[i] = '\0';
+		PrintError("Lexical error at", lex);
+		pointer++;
+		return TErr;
 	}
 }
 
@@ -288,7 +295,7 @@ void TScanner::GetData(std::string fileName)
 		std::stringstream buffer;
 		buffer << file.rdbuf();
 
-		strncpy(text, buffer.str().c_str(), MAX_TEXT - 1);
+		strncpy_s(text, buffer.str().c_str(), MAX_TEXT - 1);
 		text[MAX_TEXT - 1] = '\0';
 
 		std::cout << text << std::endl;

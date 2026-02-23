@@ -8,13 +8,12 @@
 
 int main(int argc, char* argv[])
 {
-	TScanner* scanner;
-	scanner = new TScanner("input.txt");
-	int type;
-	TypeLex lex;
-	if (argc <= 1)
-		GetData("input.txt");
-	else
-		GetData(argv[1]);
-
+    std::string filename = (argc > 1) ? argv[1] : "input.txt";
+    TScanner scanner(filename);
+    TLL1 analyzer(&scanner);
+    if (analyzer.Analyze())
+    {
+        std::cout << "Syntax is correct\n";
+    }
+    return 0;
 }
