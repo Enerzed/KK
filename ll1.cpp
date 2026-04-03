@@ -23,12 +23,6 @@ void TLL1::NextToken()
 }
 
 
-void Error(std::string Error)
-{
-	std::cout << Error << std::endl;
-	exit(1);
-}
-
 
 bool TLL1::Analyze()
 {
@@ -46,7 +40,7 @@ bool TLL1::Analyze()
             }
             else
             {
-                Error("Wrong token");
+                scanner->PrintError("Wrong token ", lex);
             }
         }
         else
@@ -71,7 +65,7 @@ bool TLL1::Analyze()
                 }
                 else
                 {
-                    Error("Expected descriptor or EOF");
+                    scanner->PrintError("Expected descriptor or EOF got ", lex);
                 }
                 break;
 
@@ -88,7 +82,7 @@ bool TLL1::Analyze()
                 }
                 else
                 {
-                    Error("Expected type or void");
+                    scanner->PrintError("Expected type or void got ", lex);
                 }
                 break;
 
@@ -107,7 +101,7 @@ bool TLL1::Analyze()
                 }
                 else
                 {
-                    Error("Expected type");
+                    scanner->PrintError("Expected type got", lex);
                 }
                 break;
 
@@ -127,7 +121,7 @@ bool TLL1::Analyze()
                 {
                     if (currentToken != TSemicolon)
                     {
-                        Error("Expected comma or semicolon");
+                        scanner->PrintError("Expected comma or semicolon got ", lex);
                     }
                 }
                 break;
@@ -140,7 +134,7 @@ bool TLL1::Analyze()
                 }
                 else
                 {
-                    Error("Expected identifier");
+                    scanner->PrintError("Expected identifier got ", lex);
                 }
                 break;
 
@@ -161,7 +155,7 @@ bool TLL1::Analyze()
                 {
                     if (currentToken != TComma && currentToken != TSemicolon)
                     {
-                        Error("Expected = or ;");
+                        scanner->PrintError("Expected = or ; got ", lex);
                     }
                 }
                 break;
@@ -178,7 +172,7 @@ bool TLL1::Analyze()
                 {
                     if (currentToken != TComma && currentToken != TSemicolon)
                     {
-                        Error("Expected = or ;");
+                        scanner->PrintError("Expected = or ; got ", lex);
                     }
                 }
                 break;
@@ -190,7 +184,7 @@ bool TLL1::Analyze()
                 }
                 else
                 {
-                    Error("Expected const10 or const16");
+                    scanner->PrintError("Expected const10 or const16 got ", lex);
                 }
                 break;
 
@@ -205,7 +199,7 @@ bool TLL1::Analyze()
                 {
                     if (currentToken != TRightBrace)
                     {
-                        Error("Expected expression or }");
+                        scanner->PrintError("Expected expression or } got ", lex);
                     }
                 }
                 break;
@@ -226,7 +220,7 @@ bool TLL1::Analyze()
                 {
                     if (currentToken != TRightBrace)
                     {
-                        Error("Expected , or }");
+                        scanner->PrintError("Expected , or } got ", lex);
                     }
                 }
                 break;
@@ -242,7 +236,7 @@ bool TLL1::Analyze()
                 }
                 else 
                 {
-                    Error("Expected void");
+                    scanner->PrintError("Expected void got ", lex);
                 }
                 break;
 
@@ -273,7 +267,7 @@ bool TLL1::Analyze()
                 {
                     if (currentToken != TRightBrace)
                     {
-                        Error("Expected operator or descriptor");
+                        scanner->PrintError("Expected operator or descriptor got ", lex);
                     }
                 }
                 break;
@@ -303,7 +297,7 @@ bool TLL1::Analyze()
                 }
                 else
                 {
-                    Error("Wrong desctription of data or function");
+                    scanner->PrintError("Wrong desctription of data or function", lex);
                 }
                 break;
 
@@ -314,7 +308,7 @@ bool TLL1::Analyze()
                 }
                 else 
                 {
-                    Error("Expected ;");
+                    scanner->PrintError("Expected ; got ", lex);
                 }
                 break;
 
@@ -330,7 +324,7 @@ bool TLL1::Analyze()
                 }
                 else
                 {
-                    Error("Expected if");
+                    scanner->PrintError("Expected if got ", lex);
                 }
                 break;
 
@@ -346,7 +340,7 @@ bool TLL1::Analyze()
                         currentToken != TIdent && currentToken != TSemicolon &&
                         currentToken != TLeftBrace)
                     {
-                        Error("Wrong after if condtion");
+                        scanner->PrintError("Wrong after if condtion ", lex);
                     }
                 }
                 break;
@@ -359,7 +353,7 @@ bool TLL1::Analyze()
                 }
                 else
                 {
-                    Error("Expected identifier");
+                    scanner->PrintError("Expected identifier got", lex);
                 }
                 break;
 
@@ -387,7 +381,7 @@ bool TLL1::Analyze()
                 }
                 else
                 {
-                    Error("Expected ( or [");
+                    scanner->PrintError("Expected ( or [ got", lex);
                 }
                 break;
 
@@ -410,7 +404,7 @@ bool TLL1::Analyze()
                         currentToken != TSemicolon && currentToken != TComma &&
                         currentToken != TRightBrace)
                     {
-                        Error("Expected operator comparison or right bracket");
+                        scanner->PrintError("Expected operator comparison or right bracket got ", lex);
                     }
                 }
                 break;
@@ -434,7 +428,7 @@ bool TLL1::Analyze()
                         currentToken != TSemicolon && currentToken != TComma &&
                         currentToken != TRightBrace)
                     {
-                        Error("Expected operator comparison");
+                        scanner->PrintError("Expected operator comparison got ", lex);
                     }
                 }
                 break;
@@ -461,7 +455,7 @@ bool TLL1::Analyze()
                         currentToken != TSemicolon && currentToken != TComma &&
                         currentToken != TRightBrace)
                     {
-                        Error("Expected + or - or operator comparison");
+                        scanner->PrintError("Expected + or - or operator comparison got ", lex);
                     }
                 }
                 break;
@@ -489,7 +483,7 @@ bool TLL1::Analyze()
                         currentToken != TSemicolon && currentToken != TComma &&
                         currentToken != TRightBrace)
                     {
-                        Error("Expected * or / or % or operator addendum");
+                        scanner->PrintError("Expected * or / or % or operator addendum got ", lex);
                     }
                 }
                 break;
@@ -543,19 +537,19 @@ bool TLL1::Analyze()
                 }
                 else
                 {
-                    Error("Expected identifier or const or (");
+                    scanner->PrintError("Expected identifier or const or ( got ", lex);
                 }
                 break;
 
             default:
-                Error("INTERNAL ERROR: Unknown token");
+                scanner->PrintError("Unknown token got", lex);
             }
         }
     }
 
     if (currentToken != TEnd)
     {
-        Error("Expected end");
+        scanner->PrintError("Expected end got ", lex);
         return false;
     }
     return true;
