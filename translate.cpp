@@ -86,7 +86,11 @@ void Translate::SetId(TypeLex lex)
     if (inDeclaration)
     {
         TypeObject kind = (currentArraySize > 0) ? OBJECT_ARRAY : OBJECT_VARIABLE;
-        tree->AddSymbol(lex, kind, currentDataType, currentArraySize);
+        bool added = tree->AddSymbol(lex, kind, currentDataType, currentArraySize);
+        if (!added)
+        {
+            scanner->PrintError("Duplicate identifier", lex);
+        }
         if (kind == OBJECT_ARRAY)
         {
             currentArrayName = lex;
@@ -103,7 +107,11 @@ void Translate::SetType(int token)
 
 void Translate::StartFunction(TypeLex lex)
 {
-    tree->AddSymbol(lex, OBJECT_FUNCTION, TYPE_VOID);
+    bool added = tree->AddSymbol(lex, OBJECT_FUNCTION, TYPE_VOID);
+    if (!added)
+    {
+        scanner->PrintError("Duplicate function name", lex);
+    }
     triadGen->GenProc(lex);
     triadGen->GenProlog();
     tree->EnterScope();
@@ -114,6 +122,7 @@ void Translate::EndFunction()
     triadGen->GenEpilog();
     triadGen->GenRet();
     triadGen->GenEndp();
+    tree->ExitScope();
 }
 
 void Translate::NewLevel()
