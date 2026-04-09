@@ -1,10 +1,8 @@
 ﻿#include <iostream>
 #include <string>
-
 #include "defs.hpp"
 #include "scanner.hpp"
 #include "ll1.hpp"
-
 
 int main(int argc, char* argv[])
 {
@@ -13,7 +11,8 @@ int main(int argc, char* argv[])
     TLL1 analyzer(&scanner);
     if (analyzer.Analyze())
     {
-        std::cout << "Syntax is correct\n";
+        std::cout << "\nSyntax is correct\n";
+        // Triads are printed by Translate destructor
     }
     return 0;
 }

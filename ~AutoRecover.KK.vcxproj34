@@ -132,6 +132,7 @@
     <ClInclude Include="defs.hpp" />
     <ClInclude Include="ll1.hpp" />
     <ClInclude Include="scanner.hpp" />
+    <ClInclude Include="translate.hpp" />
     <ClInclude Include="tree.hpp" />
     <ClInclude Include="triad.hpp" />
   </ItemGroup>

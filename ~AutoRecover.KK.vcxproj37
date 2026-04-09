@@ -126,12 +126,15 @@
     <ClCompile Include="ll1.cpp" />
     <ClCompile Include="scanner.cpp" />
     <ClCompile Include="trans.cpp" />
+    <ClCompile Include="translate.cpp" />
     <ClCompile Include="tree.cpp" />
+    <ClCompile Include="triad.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="defs.hpp" />
     <ClInclude Include="ll1.hpp" />
     <ClInclude Include="scanner.hpp" />
+    <ClInclude Include="translate.hpp" />
     <ClInclude Include="tree.hpp" />
     <ClInclude Include="triad.hpp" />
   </ItemGroup>

@@ -7,36 +7,30 @@ TScanner::TScanner(std::string fileName)
 	SetPointer(0);
 }
 
-
 TScanner::~TScanner()
 {
 	breakLinePositions.clear();
 }
-
 
 TypeLex keyword[MAX_KEYWORD] =
 {
 	"int", "short", "long", "__int64", "char", "if", "else", "void"
 };
 
-
 int indexKeyword[MAX_KEYWORD] =
 {
 	TInt, TShort, TLong, T__Int64, TChar, TIf, TElse, TVoid
 };
-
 
 void TScanner::SetPointer(int newPointer)
 {
 	pointer = newPointer;
 }
 
-
 int TScanner::GetPointer()
 {
 	return pointer;
 }
-
 
 void TScanner::PrintError(std::string error, std::string text)
 {
@@ -51,7 +45,6 @@ void TScanner::PrintError(std::string error, std::string text)
 	exit(1);
 }
 
-
 void TScanner::PrintWarning(std::string warning, std::string text)
 {
 	if (breakLinePositions.empty())
@@ -63,7 +56,6 @@ void TScanner::PrintWarning(std::string warning, std::string text)
 	else
 		std::cout << "Line " << lineCounter << " position " << positionInLine << ": " << warning << " " << text << std::endl;
 }
-
 
 int TScanner::Scanner(TypeLex lex)
 {
@@ -128,32 +120,29 @@ start:
 	}
 
 	// Hexadecimal constant
-	if (text[pointer] == '0' && text[pointer + 1] == 'x')
+	if (text[pointer] == '0' && (text[pointer + 1] == 'x' || text[pointer + 1] == 'X'))
 	{
 		lex[i++] = text[pointer++];
 		lex[i++] = text[pointer++];
 		if (!isxdigit(text[pointer]))
-		{ // Check for at least one hex digit
+		{
 			lex[i] = '\0';
-			{
-				PrintError("Invalid hexadecimal constant", lex);
-				return TErr;
-			}
-			while (isxdigit(text[pointer]) && i < MAX_HEX_LEX - 1)
-			{
-				lex[i++] = text[pointer++];
-			}
-			lex[i] = '\0';
-			if (i == MAX_HEX_LEX - 1 && isxdigit(text[pointer]))
-			{
-				lex[i] = '\0';
-				while (isxdigit(text[pointer]))
-					pointer++;
-				PrintError("Hexadecimal constant exceeds maximum lexeme length", lex);
-				return TErr;
-			}
-			return TConst16;
+			PrintError("Invalid hexadecimal constant", lex);
+			return TErr;
 		}
+		while (isxdigit(text[pointer]) && i < MAX_HEX_LEX - 1)
+		{
+			lex[i++] = text[pointer++];
+		}
+		lex[i] = '\0';
+		if (i == MAX_HEX_LEX - 1 && isxdigit(text[pointer]))
+		{
+			while (isxdigit(text[pointer]))
+				pointer++;
+			PrintError("Hexadecimal constant exceeds maximum lexeme length", lex);
+			return TErr;
+		}
+		return TConst16;
 	}
 
 	// Decimal constants
@@ -285,7 +274,6 @@ start:
 		return TErr;
 	}
 }
-
 
 void TScanner::GetData(std::string fileName)
 {
