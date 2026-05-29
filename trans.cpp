@@ -13,9 +13,6 @@ int main(int argc, char* argv[])
     if (analyzer.Analyze())
     {
         std::cout << "\nSyntax is correct\n";
-        Optimizer optimizer(analyzer.GetTranslate()->GetTriadGenerator());
-        optimizer.Optimize();
-        // Triads are printed by Translate destructor
     }
     return 0;
 }

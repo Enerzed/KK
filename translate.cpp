@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <cstring>
 
+
 Translate::Translate(TScanner* scanner)
     : scanner(scanner), inDeclaration(false), currentArraySize(0)
 {
@@ -14,6 +15,7 @@ Translate::Translate(TScanner* scanner)
 
 Translate::~Translate()
 {
+    OptimizeTriads();
     triadGen->Print();
     delete triadGen;
     delete tree;
@@ -375,4 +377,10 @@ void Translate::GenElse()
 void Translate::GenEndIf()
 {
     triadGen->GenEndIf();
+}
+
+void Translate::OptimizeTriads()
+{
+    Optimizer optimizer(triadGen);
+    optimizer.Optimize();
 }

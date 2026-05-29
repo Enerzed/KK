@@ -144,6 +144,7 @@ void TriadGenerator::Print()
     for (size_t i = 0; i < triads.size(); ++i)
     {
         const Triad& t = triads[i];
+        if (t.op == "deleted") continue;
         if (t.op == "if")
         {
             std::cout << i << ") if (" << (i + 1) << ") (" << t.arg2 << ")" << std::endl;
@@ -191,6 +192,18 @@ std::string TriadGenerator::GetArg2(int index) const
 {
     if (index < 0 || index >= (int)triads.size()) return "";
     return triads[index].arg2;
+}
+
+void TriadGenerator::SetArg1(int index, const std::string& arg1)
+{
+    if (index >= 0 && index < (int)triads.size())
+        triads[index].arg1 = arg1;
+}
+
+void TriadGenerator::SetArg2(int index, const std::string& arg2)
+{
+    if (index >= 0 && index < (int)triads.size())
+        triads[index].arg2 = arg2;
 }
 
 void TriadGenerator::SetTriad(int index, const std::string& op, const std::string& arg1, const std::string& arg2)

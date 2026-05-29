@@ -17,6 +17,8 @@ public:
     std::string GetOp(int index) const;
     std::string GetArg1(int index) const;
     std::string GetArg2(int index) const;
+    void SetArg1(int index, const std::string& arg1);
+    void SetArg2(int index, const std::string& arg2);
     void SetTriad(int index, const std::string& op, const std::string& arg1 = "", const std::string& arg2 = "");
     bool IsConstTriad(int index) const;
     std::string GetConstValue(int index) const;
@@ -39,8 +41,9 @@ public:
     void GenArrayAssign();
     void GenTypeCast(const std::string& toType, const std::string& fromType, const std::string& value);
     void GenNop();
+
     // Helpers
-    int nextTriadIndex() const { return triads.size(); }
+    int NextTriadIndex() const { return triads.size(); }
     int GetNextIndex() const { return triads.size(); }
     int GetLastIndex() const { return triads.empty() ? -1 : triads.size() - 1; }
     bool IsStackEmpty() const { return valueStack.empty(); }

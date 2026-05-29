@@ -3,6 +3,7 @@
 #include "tree.hpp"
 #include "triad.hpp"
 #include "scanner.hpp"
+#include "optimizer.hpp"
 
 
 class Translate
@@ -10,6 +11,7 @@ class Translate
 private:
     Tree* tree;
     TScanner* scanner;
+    TriadGenerator* triadGen;
     TypeData currentDataType;
     TypeData currentArrayType;
     bool inDeclaration;
@@ -20,7 +22,6 @@ private:
     std::vector<std::string> initList;
 
 public:
-    TriadGenerator* triadGen;
     Translate(TScanner* scanner);
     ~Translate();
     void ExecuteAction(int actionCode, TypeLex lex, int token);
@@ -59,6 +60,7 @@ public:
     void StartArray();
     void EndArray();
     void SetArraySize(TypeLex lex);
-    
+    // Triad generator
     TriadGenerator* GetTriadGenerator() { return triadGen; }
+    void OptimizeTriads();
 };
