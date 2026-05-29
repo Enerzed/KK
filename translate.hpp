@@ -9,7 +9,6 @@ class Translate
 {
 private:
     Tree* tree;
-    TriadGenerator* triadGen;
     TScanner* scanner;
     TypeData currentDataType;
     TypeData currentArrayType;
@@ -21,10 +20,11 @@ private:
     std::vector<std::string> initList;
 
 public:
+    TriadGenerator* triadGen;
     Translate(TScanner* scanner);
     ~Translate();
     void ExecuteAction(int actionCode, TypeLex lex, int token);
-
+    // Actions
     void StartDeclareData();
     void EndDeclareData();
     void SetId(TypeLex lex);
@@ -59,4 +59,6 @@ public:
     void StartArray();
     void EndArray();
     void SetArraySize(TypeLex lex);
+    
+    TriadGenerator* GetTriadGenerator() { return triadGen; }
 };

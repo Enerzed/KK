@@ -169,3 +169,63 @@ void TriadGenerator::Clear()
     ifStack.clear();
     elseStack.clear();
 }
+
+int TriadGenerator::GetTriadCount() const
+{
+    return (int)triads.size();
+}
+
+std::string TriadGenerator::GetOp(int index) const
+{
+    if (index < 0 || index >= (int)triads.size()) return "";
+    return triads[index].op;
+}
+
+std::string TriadGenerator::GetArg1(int index) const
+{
+    if (index < 0 || index >= (int)triads.size()) return "";
+    return triads[index].arg1;
+}
+
+std::string TriadGenerator::GetArg2(int index) const
+{
+    if (index < 0 || index >= (int)triads.size()) return "";
+    return triads[index].arg2;
+}
+
+void TriadGenerator::SetTriad(int index, const std::string& op, const std::string& arg1, const std::string& arg2)
+{
+    if (index >= 0 && index < (int)triads.size())
+    {
+        triads[index].op = op;
+        triads[index].arg1 = arg1;
+        triads[index].arg2 = arg2;
+    }
+}
+
+bool TriadGenerator::IsConstTriad(int index) const
+{
+    return (index >= 0 && index < (int)triads.size() && triads[index].op == "const");
+}
+
+std::string TriadGenerator::GetConstValue(int index) const
+{
+    if (IsConstTriad(index))
+        return triads[index].arg1;
+    return "";
+}
+
+void TriadGenerator::ReplaceAllReferences(int oldIdx, const std::string& newValue)
+{
+    std::string pattern = "(" + std::to_string(oldIdx) + ")";
+    for (auto& t : triads) {
+        if (t.arg1 == pattern) t.arg1 = newValue;
+        if (t.arg2 == pattern) t.arg2 = newValue;
+    }
+}
+
+void TriadGenerator::DeleteTriad(int index)
+{
+    if (index >= 0 && index < (int)triads.size())
+        triads[index].op = "deleted";
+}

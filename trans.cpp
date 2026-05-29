@@ -2,6 +2,7 @@
 #include <string>
 #include "defs.hpp"
 #include "scanner.hpp"
+#include "optimizer.hpp"
 #include "ll1.hpp"
 
 int main(int argc, char* argv[])
@@ -12,6 +13,8 @@ int main(int argc, char* argv[])
     if (analyzer.Analyze())
     {
         std::cout << "\nSyntax is correct\n";
+        Optimizer optimizer(analyzer.GetTranslate()->GetTriadGenerator());
+        optimizer.Optimize();
         // Triads are printed by Translate destructor
     }
     return 0;

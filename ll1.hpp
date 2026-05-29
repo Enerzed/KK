@@ -21,4 +21,5 @@ public:
 	~TLL1();
 	void NextToken();
 	bool Analyze();
+	Translate* GetTranslate() { return translate; }
 };

@@ -12,6 +12,16 @@ public:
     void AddTriad(const std::string& op, const std::string& arg1 = "", const std::string& arg2 = "");
     void PushOperand(const std::string& val);
     std::string PopOperand();
+    // Triad access
+    int GetTriadCount() const;
+    std::string GetOp(int index) const;
+    std::string GetArg1(int index) const;
+    std::string GetArg2(int index) const;
+    void SetTriad(int index, const std::string& op, const std::string& arg1 = "", const std::string& arg2 = "");
+    bool IsConstTriad(int index) const;
+    std::string GetConstValue(int index) const;
+    void ReplaceAllReferences(int oldIdx, const std::string& newValue);
+    void DeleteTriad(int index);
     // Generating triads
     void GenProc(const std::string& funcName);
     void GenProlog();
