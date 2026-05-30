@@ -1,23 +1,35 @@
-int global = 0;
+int global;
+int data[8];
 
-void func()
-{
-    if (global != 0)
-    {
-        global = 10;
-    }
-    int a = 5;
-    int b = 3;
-    global = a + b;
+void fill() {
+    int i = 1 + 2 * 3;
+    int j = (i - 5) * 2;
+    data[i - j] = i + j;
+    data[j] = data[i - j] * 2;
 }
 
-void main()
-{
-    if (1)
-    {
-        func();
+void process() {
+    int x = data[3] + data[4];
+    int y = data[(x % 5) + 1];
+    if (x > y) {
+        if (x != y) {
+            global = x - y;
+        } else {
+            global = x + y;
+        }
+    } else {
+        if (y % 2 == 0) {
+            global = y * 2;
+        } else {
+            global = y;
+        }
     }
-    int c = 10;
-    int d = c * 2;
-    global = d + 1;
+}
+
+void main() {
+    fill();
+    process();
+    if (global > 10) {
+        data[0] = global;
+    }
 }

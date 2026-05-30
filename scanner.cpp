@@ -1,10 +1,17 @@
+/* scanner.cpp */
+
 #include "scanner.hpp"
 
+static std::unordered_map<std::string, int> keywordMap =
+{
+	{"int", TInt}, {"short", TShort}, {"long", TLong}, {"__int64", T__Int64},
+	{"char", TChar}, {"if", TIf}, {"else", TElse}, {"void", TVoid}
+};
 
-TScanner::TScanner(std::string fileName)
+TScanner::TScanner(const std::string& fileName)
 {
 	GetData(fileName);
-	SetPointer(0);
+	pointer = 0;
 }
 
 TScanner::~TScanner()
@@ -12,286 +19,204 @@ TScanner::~TScanner()
 	breakLinePositions.clear();
 }
 
-TypeLex keyword[MAX_KEYWORD] =
-{
-	"int", "short", "long", "__int64", "char", "if", "else", "void"
-};
-
-int indexKeyword[MAX_KEYWORD] =
-{
-	TInt, TShort, TLong, T__Int64, TChar, TIf, TElse, TVoid
-};
-
 void TScanner::SetPointer(int newPointer)
 {
 	pointer = newPointer;
 }
 
-int TScanner::GetPointer()
+int TScanner::GetPointer() const
 {
 	return pointer;
 }
 
-void TScanner::PrintError(std::string error, std::string text)
+void TScanner::PrintError(const std::string& error, const std::string& text)
 {
 	if (breakLinePositions.empty())
-		positionInLine = pointer;
+		positionInLine = static_cast<int>(pointer);
 	else
-		positionInLine = pointer - breakLinePositions.back();
-	if (text[0] == '\0')
-		std::cout << "Line " << lineCounter << " position " << positionInLine << ": " << error << std::endl;
-	else
-		std::cout << "Line " << lineCounter << " position " << positionInLine << ": " << error << " " << text << std::endl;
+		positionInLine = static_cast<int>(pointer - breakLinePositions.back());
+	std::cout << "Line " << lineCounter << " position " << positionInLine << ": " << error;
+	if (!text.empty()) std::cout << " " << text;
+	std::cout << std::endl;
 	exit(1);
 }
 
-void TScanner::PrintWarning(std::string warning, std::string text)
+void TScanner::PrintWarning(const std::string& error, const std::string& text)
 {
 	if (breakLinePositions.empty())
-		positionInLine = pointer;
+		positionInLine = static_cast<int>(pointer);
 	else
-		positionInLine = pointer - breakLinePositions.back();
-	if (text[0] == '\0')
-		std::cout << "Line " << lineCounter << " position " << positionInLine << ": " << warning << std::endl;
-	else
-		std::cout << "Line " << lineCounter << " position " << positionInLine << ": " << warning << " " << text << std::endl;
+		positionInLine = static_cast<int>(pointer - breakLinePositions.back());
+	std::cout << "Line " << lineCounter << " position " << positionInLine << ": " << error;
+	if (!text.empty()) std::cout << " " << text;
+	std::cout << std::endl;
 }
 
-int TScanner::Scanner(TypeLex lex)
+int TScanner::Scanner(std::string& lex)
 {
-	int i = 0;
-	lex[0] = '\0';
+	lex.clear();
 start:
-	while (text[pointer] == ' ' || text[pointer] == '\t' || text[pointer] == '\n') 
+	while (pointer < text.size() && (text[pointer] == ' ' || text[pointer] == '\t' || text[pointer] == '\n'))
 	{
 		if (text[pointer] == '\n')
+		{
 			if (std::find(breakLinePositions.begin(), breakLinePositions.end(), pointer) == breakLinePositions.end())
 			{
 				lineCounter++;
 				breakLinePositions.push_back(pointer);
 			}
+		}
 		pointer++;
 	}
-	i = 0;
 
-	// End of program
-	if (text[pointer] == '\0')
+	if (pointer >= text.size())
 	{
-		lex[i++] = '#';
-		lex[i] = '\0';
+		lex = "#";
 		return TEnd;
 	}
 
-	// Comments one-line and multi-line
+	// Comments
 	if (text[pointer] == '/')
 	{
-		pointer++;
-		if (text[pointer] == '/')
+		if (pointer + 1 < text.size() && text[pointer + 1] == '/')
 		{
-			//std::cout << "Encountered comment line" << std::endl;
-			pointer++;
-			while (text[pointer] != '\n' && text[pointer] != '\0')
-				pointer++;
+			pointer += 2;
+			while (pointer < text.size() && text[pointer] != '\n') pointer++;
 			goto start;
 		}
-		else if (text[pointer] == '*')
+		else if (pointer + 1 < text.size() && text[pointer + 1] == '*')
 		{
-			//std::cout << "Encountered comment block" << std::endl;
-			pointer++;
-			while (text[pointer] != '*' || text[pointer + 1] != '/')
+			pointer += 2;
+			while (pointer + 1 < text.size() && !(text[pointer] == '*' && text[pointer + 1] == '/'))
 			{
-				if (text[pointer] == '\0')
+				if (text[pointer] == '\n')
 				{
-					PrintError("Unterminated multi-line comment", "");
-					return TErr;
+					lineCounter++;
+					breakLinePositions.push_back(pointer);
 				}
 				pointer++;
+			}
+			if (pointer + 1 >= text.size())
+			{
+				PrintError("Unterminated multi-line comment");
+				return TErr;
 			}
 			pointer += 2;
 			goto start;
 		}
 		else
 		{
-			// Division
-			lex[i++] = '/';
-			lex[i++] = '\0';
+			lex = "/";
+			pointer++;
 			return TDiv;
 		}
 	}
 
-	// Hexadecimal constant
-	if (text[pointer] == '0' && (text[pointer + 1] == 'x' || text[pointer + 1] == 'X'))
+	if (text[pointer] == '0' && pointer + 1 < text.size() && (text[pointer + 1] == 'x' || text[pointer + 1] == 'X'))
 	{
-		lex[i++] = text[pointer++];
-		lex[i++] = text[pointer++];
-		if (!isxdigit(text[pointer]))
+		lex += text[pointer++]; // 0
+		lex += text[pointer++]; // x
+		if (pointer >= text.size() || !isxdigit(text[pointer]))
 		{
-			lex[i] = '\0';
 			PrintError("Invalid hexadecimal constant", lex);
 			return TErr;
 		}
-		while (isxdigit(text[pointer]) && i < MAX_HEX_LEX - 1)
+		while (pointer < text.size() && isxdigit(text[pointer]))
 		{
-			lex[i++] = text[pointer++];
-		}
-		lex[i] = '\0';
-		if (i == MAX_HEX_LEX - 1 && isxdigit(text[pointer]))
-		{
-			while (isxdigit(text[pointer]))
-				pointer++;
-			PrintError("Hexadecimal constant exceeds maximum lexeme length", lex);
-			return TErr;
+			lex += text[pointer++];
 		}
 		return TConst16;
 	}
 
-	// Decimal constants
 	if (isdigit(text[pointer]))
 	{
-		while (isdigit(text[pointer]) && i < MAX_DEC_LEX - 1)
-		{ // Added length check
-			lex[i++] = text[pointer++];
-		}
-		lex[i] = '\0';
-		if (i == MAX_DEC_LEX - 1 && isdigit(text[pointer]))
+		while (pointer < text.size() && isdigit(text[pointer]))
 		{
-			while (isdigit(text[pointer]))
-				pointer++;
-			PrintError("Decimal constant exceeds maximum lexeme length", lex);
-			return TErr;
+			lex += text[pointer++];
 		}
 		return TConst10;
 	}
 
-	// Identifiers
 	if (isalpha(text[pointer]) || text[pointer] == '_')
 	{
-		while ((isalnum(text[pointer]) || text[pointer] == '_') && i < MAX_LEX - 1)
-		{ // Added length check
-			lex[i++] = text[pointer++];
-		}
-		lex[i] = '\0';
-		if (i == MAX_LEX - 1 && (isalnum(text[pointer]) || text[pointer] == '_'))
+		while (pointer < text.size() && (isalnum(text[pointer]) || text[pointer] == '_'))
 		{
-			while (isalnum(text[pointer]) || text[pointer] == '_')
-				pointer++;
-			PrintError("Identifier exceeds maximum lexeme length", lex);
-			return TErr;
+			lex += text[pointer++];
 		}
-
-		for (int j = 0; j < MAX_KEYWORD; j++)
+		auto it = keywordMap.find(lex);
+		if (it != keywordMap.end())
 		{
-			if (strcmp(lex, keyword[j]) == 0)
-			{
-				return indexKeyword[j];
-			}
+			return it->second;
 		}
 		return TIdent;
 	}
 
-	// Operators
-	switch (text[pointer])
+	char c = text[pointer++];
+	lex = c;
+	switch (c)
 	{
-	case ',': pointer++; lex[i++] = ','; lex[i] = '\0'; return TComma;
-	case ';': pointer++; lex[i++] = ';'; lex[i] = '\0'; return TSemicolon;
-	case '(': pointer++; lex[i++] = '('; lex[i] = '\0'; return TLeftBracket;
-	case ')': pointer++; lex[i++] = ')'; lex[i] = '\0'; return TRightBracket;
-	case '{': pointer++; lex[i++] = '{'; lex[i] = '\0'; return TLeftBrace;
-	case '}': pointer++; lex[i++] = '}'; lex[i] = '\0'; return TRightBrace;
-	case '[': pointer++; lex[i++] = '['; lex[i] = '\0'; return TLeftSquareBracket;
-	case ']': pointer++; lex[i++] = ']'; lex[i] = '\0'; return TRightSquareBracket;
-	case '+': pointer++; lex[i++] = '+'; lex[i] = '\0'; return TAdd;
-	case '-': pointer++; lex[i++] = '-'; lex[i] = '\0'; return TSub;
-	case '*': pointer++; lex[i++] = '*'; lex[i] = '\0'; return TMul;
-	case '%': pointer++; lex[i++] = '%'; lex[i] = '\0'; return TMod;
+	case ',': return TComma;
+	case ';': return TSemicolon;
+	case '(': return TLeftBracket;
+	case ')': return TRightBracket;
+	case '{': return TLeftBrace;
+	case '}': return TRightBrace;
+	case '[': return TLeftSquareBracket;
+	case ']': return TRightSquareBracket;
+	case '+': return TAdd;
+	case '-': return TSub;
+	case '*': return TMul;
+	case '%': return TMod;
 	case '=':
-		pointer++;
-		lex[i++] = '=';
-		if (text[pointer] == '=')
+		if (pointer < text.size() && text[pointer] == '=')
 		{
 			pointer++;
-			lex[i++] = '=';
-			lex[i] = '\0';
+			lex += '=';
 			return TEq;
 		}
-		else
-		{
-			lex[i] = '\0';
-			return TEval;
-		}
+		return TEval;
 	case '!':
-		pointer++;
-		lex[i++] = '!';
-		if (text[pointer] == '=')
+		if (pointer < text.size() && text[pointer] == '=')
 		{
 			pointer++;
-			lex[i++] = '=';
-			lex[i] = '\0';
+			lex += '=';
 			return TNe;
 		}
-		// Not implementing NOT operation
-		else
-		{
-			lex[i] = '\0';
-			PrintError("Unexpected token", lex);
-			return TErr;
-		}
+		PrintError("Unexpected token", lex);
+		return TErr;
 	case '>':
-		pointer++;
-		lex[i++] = '>';
-		if (text[pointer] == '=')
+		if (pointer < text.size() && text[pointer] == '=')
 		{
 			pointer++;
-			lex[i++] = '=';
-			lex[i] = '\0';
+			lex += '=';
 			return TGe;
 		}
-		else
-		{
-			lex[i] = '\0';
-			return TGt;
-		}
+		return TGt;
 	case '<':
-		pointer++;
-		lex[i++] = '<';
-		if (text[pointer] == '=')
+		if (pointer < text.size() && text[pointer] == '=')
 		{
 			pointer++;
-			lex[i++] = '=';
-			lex[i] = '\0';
+			lex += '=';
 			return TLe;
 		}
-		else
-		{
-			lex[i] = '\0';
-			return TLt;
-		}
+		return TLt;
 	default:
-		lex[i++] = text[pointer];
-		lex[i] = '\0';
 		PrintError("Lexical error at", lex);
-		pointer++;
 		return TErr;
 	}
 }
 
-void TScanner::GetData(std::string fileName)
+void TScanner::GetData(const std::string& fileName)
 {
 	std::ifstream file(fileName);
-	if (file.is_open())
-	{
-		std::stringstream buffer;
-		buffer << file.rdbuf();
-
-		strncpy_s(text, buffer.str().c_str(), MAX_TEXT - 1);
-		text[MAX_TEXT - 1] = '\0';
-
-		std::cout << text << std::endl;
-		std::cout << "_____________________________________________________________________________________________________	" << std::endl;
-	}
-	else
+	if (!file.is_open())
 	{
 		PrintError("Error opening file", fileName);
 		return;
 	}
+	std::stringstream buffer;
+	buffer << file.rdbuf();
+	text = buffer.str();
+	std::cout << text << std::endl;
+	std::cout << "_____________________________________________________________________________________________________" << std::endl;
 }

@@ -124,7 +124,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ll1.cpp" />
-    <ClCompile Include="optimizer.cpp" />
     <ClCompile Include="scanner.cpp" />
     <ClCompile Include="trans.cpp" />
     <ClCompile Include="translate.cpp" />
@@ -134,7 +133,6 @@
   <ItemGroup>
     <ClInclude Include="defs.hpp" />
     <ClInclude Include="ll1.hpp" />
-    <ClInclude Include="optimizer.hpp" />
     <ClInclude Include="scanner.hpp" />
     <ClInclude Include="translate.hpp" />
     <ClInclude Include="tree.hpp" />

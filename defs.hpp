@@ -1,19 +1,9 @@
+/* defs.hpp */
+
 #pragma once
 
 
-#include <cstdlib>
 #include <string>
-
-
-#define MAX_TEXT 16384
-#define MAX_LEX 64
-#define MAX_DEC_LEX 20
-#define MAX_HEX_LEX 19
-
-#define MAX_KEYWORD 16
-
-typedef char TypeLex[MAX_LEX];
-typedef char TypeMod[MAX_TEXT];
 
 
 /** Tokens **/
@@ -101,7 +91,6 @@ typedef char TypeMod[MAX_TEXT];
 #define T_ACTION_NEW_LEVEL			208
 #define T_ACTION_RETURN_LEVEL		209
 #define T_ACTION_FIND_ID			210
-#define T_ACTION_CHECK_TYPE			211
 #define T_ACTION_INIT_VALUE			212
 #define T_ACTION_GEN_IF				213
 #define T_ACTION_GEN_ELSE			214
@@ -122,7 +111,6 @@ typedef char TypeMod[MAX_TEXT];
 #define T_ACTION_PUSH_OPERAND		229
 #define T_ACTION_CALL_FUNC			230
 #define T_ACTION_ARRAY_ELEM			231
-#define T_ACTION_DELETE_LEVEL		232
 #define T_ACTION_START_ARRAY		233
 #define T_ACTION_END_ARRAY			234
 #define T_ACTION_GEN_NEG            235

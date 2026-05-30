@@ -1,3 +1,5 @@
+/* translate.cpp */
+
 #include "translate.hpp"
 #include <iostream>
 #include <cstdlib>
@@ -5,382 +7,438 @@
 
 
 Translate::Translate(TScanner* scanner)
-    : scanner(scanner), inDeclaration(false), currentArraySize(0)
+	: scanner(scanner), inDeclaration(false), currentArraySize(0)
 {
-    tree = new Tree(scanner);
-    triadGen = new TriadGenerator();
-    currentDataType = TYPE_UNKNOWN;
-    currentLHS = nullptr;
+	tree = new Tree(scanner);
+	triadGen = new TriadGenerator();
+	currentDataType = TYPE_UNKNOWN;
+	currentLHS = nullptr;
 }
 
 Translate::~Translate()
 {
-    OptimizeTriads();
-    triadGen->Print();
-    delete triadGen;
-    delete tree;
+	OptimizeTriads();
+	triadGen->Print();
+	delete triadGen;
+	delete tree;
 }
 
-void Translate::ExecuteAction(int actionCode, TypeLex lex, int token)
+// Debug
+static const char* ActionName(int code)
 {
-    switch (actionCode)
-    {
-    case T_ACTION_START_DATA:      StartDeclareData(); break;
-    case T_ACTION_END_DATA:        EndDeclareData(); break;
-    case T_ACTION_SET_ID:          SetId(lex); break;
-    case T_ACTION_SET_TYPE:        SetType(token); break;
-    case T_ACTION_START_FUNC:      StartFunction(lex); break;
-    case T_ACTION_END_FUNC:        EndFunction(); break;
-    case T_ACTION_NEW_LEVEL:       NewLevel(); break;
-    case T_ACTION_RETURN_LEVEL:    ReturnLevel(); break;
-    case T_ACTION_FIND_ID:         FindId(lex); break;
-    case T_ACTION_INIT_VALUE:      InitValue(); break;
-    case T_ACTION_GEN_IF:          GenIf(); break;
-    case T_ACTION_GEN_ELSE:        GenElse(); break;
-    case T_ACTION_GEN_ENDIF:       GenEndIf(); break;
-    case T_ACTION_GEN_ASSIGN:      GenAssign(); break;
-    case T_ACTION_GEN_ARRAY_ASSIGN:GenArrayAssign(); break;
-    case T_ACTION_GEN_ADD:         GenAdd(); break;
-    case T_ACTION_GEN_SUB:         GenSub(); break;
-    case T_ACTION_GEN_MUL:         GenMul(); break;
-    case T_ACTION_GEN_DIV:         GenDiv(); break;
-    case T_ACTION_GEN_MOD:         GenMod(); break;
-    case T_ACTION_GEN_LT:          GenLt(); break;
-    case T_ACTION_GEN_LE:          GenLe(); break;
-    case T_ACTION_GEN_GT:          GenGt(); break;
-    case T_ACTION_GEN_GE:          GenGe(); break;
-    case T_ACTION_GEN_EQ:          GenEq(); break;
-    case T_ACTION_GEN_NE:          GenNe(); break;
-    case T_ACTION_GEN_NEG:         GenNeg(); break;
-    case T_ACTION_PUSH_OPERAND:    PushOperand(lex); break;
-    case T_ACTION_CALL_FUNC:       CallFunc(lex); break;
-    case T_ACTION_ARRAY_ELEM:      ArrayElem(); break;
-    case T_ACTION_DELETE_LEVEL:    DeleteLevel(); break;
-    case T_ACTION_START_ARRAY:     StartArray(); break;
-    case T_ACTION_END_ARRAY:       EndArray(); break;
-	case T_ACTION_SET_ARRAY_SIZE:  SetArraySize(lex); break;
-    case T_ACTION_FIND_ID_FOR_CALL:
-    {
-        Symbol* sym = tree->FindSymbol(lex);
-        if (!sym) scanner->PrintError("Undeclared identifier", lex);
-    }
-    break;
-    default: scanner->PrintError("Unknown semantic action", "");
-    }
+	switch (code)
+	{
+	case T_ACTION_START_DATA:			return "START_DATA";
+	case T_ACTION_END_DATA:				return "END_DATA";
+	case T_ACTION_SET_ID:				return "SET_ID";
+	case T_ACTION_SET_TYPE:				return "SET_TYPE";
+	case T_ACTION_START_FUNC:			return "START_FUNC";
+	case T_ACTION_END_FUNC:				return "END_FUNC";
+	case T_ACTION_NEW_LEVEL:			return "NEW_LEVEL";
+	case T_ACTION_RETURN_LEVEL:			return "RETURN_LEVEL";
+	case T_ACTION_FIND_ID:				return "FIND_ID";
+	case T_ACTION_INIT_VALUE:			return "INIT_VALUE";
+	case T_ACTION_GEN_IF:				return "GEN_IF";
+	case T_ACTION_GEN_ELSE:				return "GEN_ELSE";
+	case T_ACTION_GEN_ENDIF:			return "GEN_ENDIF";
+	case T_ACTION_GEN_ASSIGN:			return "GEN_ASSIGN";
+	case T_ACTION_GEN_ARRAY_ASSIGN:		return "GEN_ARRAY_ASSIGN";
+	case T_ACTION_GEN_ADD:				return "GEN_ADD";
+	case T_ACTION_GEN_SUB:				return "GEN_SUB";
+	case T_ACTION_GEN_MUL:				return "GEN_MUL";
+	case T_ACTION_GEN_DIV:				return "GEN_DIV";
+	case T_ACTION_GEN_MOD:				return "GEN_MOD";
+	case T_ACTION_GEN_LT:				return "GEN_LT";
+	case T_ACTION_GEN_LE:				return "GEN_LE";
+	case T_ACTION_GEN_GT:				return "GEN_GT";
+	case T_ACTION_GEN_GE:				return "GEN_GE";
+	case T_ACTION_GEN_EQ:				return "GEN_EQ";
+	case T_ACTION_GEN_NE:				return "GEN_NE";
+	case T_ACTION_GEN_NEG:				return "GEN_NEG";
+	case T_ACTION_PUSH_OPERAND:			return "PUSH_OPERAND";
+	case T_ACTION_CALL_FUNC:			return "CALL_FUNC";
+	case T_ACTION_ARRAY_ELEM:			return "ARRAY_ELEM";
+	case T_ACTION_START_ARRAY:			return "START_ARRAY";
+	case T_ACTION_END_ARRAY:			return "END_ARRAY";
+	case T_ACTION_SET_ARRAY_SIZE:		return "SET_ARRAY_SIZE";
+	case T_ACTION_FIND_ID_FOR_CALL:		return "FIND_ID_FOR_CALL";
+	default:							return "UNKNOWN";
+	}
+}
+
+void Translate::ExecuteAction(int actionCode, const std::string& lex, int token)
+{
+	/*
+	 * Debug
+	std::cout << "[ACTION] " << ActionName(actionCode);
+	if (!lex.empty())
+		std::cout << " lex = " << lex << " ";
+	if (token != 0)
+		std::cout << " token = " << token;
+	std::cout << std::endl;
+	 * Debug
+	 */
+	switch (actionCode)
+	{
+	case T_ACTION_START_DATA:		StartDeclareData(); break;
+	case T_ACTION_END_DATA:			EndDeclareData(); break;
+	case T_ACTION_SET_ID:			SetId(lex); break;
+	case T_ACTION_SET_TYPE:			SetType(token); break;
+	case T_ACTION_START_FUNC:		StartFunction(lex); break;
+	case T_ACTION_END_FUNC:			EndFunction(); break;
+	case T_ACTION_NEW_LEVEL:		NewLevel(); break;
+	case T_ACTION_RETURN_LEVEL:		ReturnLevel(); break;
+	case T_ACTION_FIND_ID:			FindId(lex); break;
+	case T_ACTION_INIT_VALUE:		InitValue(); break;
+	case T_ACTION_GEN_IF:			GenIf(); break;
+	case T_ACTION_GEN_ELSE:			GenElse(); break;
+	case T_ACTION_GEN_ENDIF:		GenEndIf(); break;
+	case T_ACTION_GEN_ASSIGN:		GenAssign(); break;
+	case T_ACTION_GEN_ARRAY_ASSIGN:	GenArrayAssign(); break;
+	case T_ACTION_GEN_ADD:			GenAdd(); break;
+	case T_ACTION_GEN_SUB:			GenSub(); break;
+	case T_ACTION_GEN_MUL:			GenMul(); break;
+	case T_ACTION_GEN_DIV:			GenDiv(); break;
+	case T_ACTION_GEN_MOD:			GenMod(); break;
+	case T_ACTION_GEN_LT:			GenLt(); break;
+	case T_ACTION_GEN_LE:			GenLe(); break;
+	case T_ACTION_GEN_GT:			GenGt(); break;
+	case T_ACTION_GEN_GE:			GenGe(); break;
+	case T_ACTION_GEN_EQ:			GenEq(); break;
+	case T_ACTION_GEN_NE:			GenNe(); break;
+	case T_ACTION_GEN_NEG:			GenNeg(); break;
+	case T_ACTION_PUSH_OPERAND:		PushOperand(lex); break;
+	case T_ACTION_CALL_FUNC:		CallFunc(lex); break;
+	case T_ACTION_ARRAY_ELEM:		ArrayElem(); break;
+	case T_ACTION_START_ARRAY:		StartArray(); break;
+	case T_ACTION_END_ARRAY:		EndArray(); break;
+	case T_ACTION_SET_ARRAY_SIZE:	SetArraySize(lex); break;
+	case T_ACTION_FIND_ID_FOR_CALL:
+	{
+		Symbol* sym = tree->FindSymbol(lex);
+		if (!sym) scanner->PrintError("Undeclared identifier", lex);
+	}
+	break;
+	default: scanner->PrintError("Unknown semantic action", "");
+	}
 }
 
 void Translate::StartDeclareData()
 {
-    inDeclaration = true;
-    currentDataType = TYPE_UNKNOWN;
-    currentArraySize = 0;
-    initList.clear();
+	inDeclaration = true;
+	currentDataType = TYPE_UNKNOWN;
+	currentArraySize = 0;
+	initList.clear();
 }
 
 void Translate::EndDeclareData()
 {
-    inDeclaration = false;
-    currentArrayName.clear();
+	inDeclaration = false;
+	currentArrayName.clear();
 }
 
-void Translate::SetId(TypeLex lex)
+void Translate::SetId(const std::string& lex)
 {
-    if (inDeclaration)
-    {
-        TypeObject kind = (currentArraySize > 0) ? OBJECT_ARRAY : OBJECT_VARIABLE;
-        bool added = tree->AddSymbol(lex, kind, currentDataType, currentArraySize);
-        if (!added)
-        {
-            scanner->PrintError("Duplicate identifier", lex);
-        }
-        if (kind == OBJECT_ARRAY)
-        {
-            currentArrayName = lex;
-            currentArrayType = currentDataType;
-        }
-        currentDeclId = lex;
-    }
+	if (inDeclaration)
+	{
+		TypeObject kind = (currentArraySize > 0) ? OBJECT_ARRAY : OBJECT_VARIABLE;
+		bool added = tree->AddSymbol(lex, kind, currentDataType, currentArraySize);
+		if (!added)
+		{
+			scanner->PrintError("Duplicate identifier", lex);
+		}
+		if (kind == OBJECT_ARRAY)
+		{
+			currentArrayName = lex;
+			currentArrayType = currentDataType;
+		}
+		currentDeclId = lex;
+		if (inFunction)
+		{
+			localVarNames.insert(lex);
+		}
+	}
 }
 
 void Translate::SetType(int token)
 {
-    currentDataType = tree->TokenToType(token);
+	currentDataType = tree->TokenToType(token);
 }
 
-void Translate::StartFunction(TypeLex lex)
+void Translate::StartFunction(const std::string& lex)
 {
-    bool added = tree->AddSymbol(lex, OBJECT_FUNCTION, TYPE_VOID);
-    if (!added)
-    {
-        scanner->PrintError("Duplicate function name", lex);
-    }
-    triadGen->GenProc(lex);
-    triadGen->GenProlog();
-    tree->EnterScope();
+	bool added = tree->AddSymbol(lex, OBJECT_FUNCTION, TYPE_VOID);
+	if (!added)
+	{
+		scanner->PrintError("Duplicate function name", lex);
+	}
+	triadGen->GenProc(lex);
+	triadGen->GenProlog();
+	triadGen->ClearKnownVars();
+	inFunction = true;
+	tree->EnterScope();
 }
 
 void Translate::EndFunction()
 {
-    triadGen->GenEpilog();
-    triadGen->GenRet();
-    triadGen->GenEndp();
-    tree->ExitScope();
+	triadGen->GenEpilog();
+	triadGen->GenRet();
+	triadGen->GenEndp();
+	inFunction = false;
+	tree->ExitScope();
 }
 
 void Translate::NewLevel()
 {
-    tree->EnterScope();
+	tree->EnterScope();
+	triadGen->ClearKnownVars();
 }
 
 void Translate::ReturnLevel()
 {
-    tree->ExitScope();
+	tree->ExitScope();
+	triadGen->ClearKnownVars();
 }
 
-void Translate::FindId(TypeLex lex)
+void Translate::FindId(const std::string& lex)
 {
-    Symbol* sym = tree->FindSymbol(lex);
-    if (!sym) scanner->PrintError("Undeclared identifier", lex);
-    currentLHS = sym;
+	Symbol* sym = tree->FindSymbol(lex);
+	if (!sym) scanner->PrintError("Undeclared identifier", lex);
+	currentLHS = sym;
 }
 
 void Translate::InitValue()
 {
-    if (inDeclaration && !triadGen->IsStackEmpty())
-    {
-        std::string val = triadGen->PopOperand();
-        if (!currentArrayName.empty())
-        {
-            initList.push_back(val);
-        }
-        else if (!currentDeclId.empty())
-        {
-            Symbol* sym = tree->FindSymbol(currentDeclId);
-            if (sym)
-            {
-                currentLHS = sym;
-                triadGen->PushOperand(val);
-                GenAssign();
-            }
-        }
-    }
+	if (inDeclaration && !triadGen->IsStackEmpty())
+	{
+		std::string val = triadGen->PopOperand();
+		if (!currentArrayName.empty())
+		{
+			initList.push_back(val);
+		}
+		else if (!currentDeclId.empty())
+		{
+			Symbol* sym = tree->FindSymbol(currentDeclId);
+			if (sym)
+			{
+				currentLHS = sym;
+				triadGen->PushOperand(val);
+				GenAssign();
+			}
+		}
+	}
 }
 
 void Translate::GenAssign()
 {
-    if (!currentLHS) return;
-    std::string rhs = triadGen->PopOperand();
-    TypeData lhsType = currentLHS->type;
+	if (!currentLHS) return;
+	std::string rhs = triadGen->PopOperand();
+	TypeData lhsType = currentLHS->type;
 
-    bool isDirect = (rhs.front() != '(');
-    std::string inner = rhs;
-    if (!isDirect && rhs.front() == '(' && rhs.back() == ')')
-        inner = rhs.substr(1, rhs.size() - 2);
-    else
-        inner = rhs;
+	bool isDirect = (rhs.front() != '(');
+	std::string inner = rhs;
+	if (!isDirect && rhs.front() == '(' && rhs.back() == ')')
+		inner = rhs.substr(1, rhs.size() - 2);
+	else
+		inner = rhs;
 
-    char* end;
-    strtol(inner.c_str(), &end, 0);
-    bool isConstNumber = (*end == '\0' && end != inner.c_str());
-    bool isConst = isDirect && isConstNumber;
+	char* end;
+	strtol(inner.c_str(), &end, 0);
+	bool isConstNumber = (*end == '\0' && end != inner.c_str());
+	bool isConst = isDirect && isConstNumber;
 
-    if (lhsType != TYPE___INT64 && lhsType != TYPE_UNKNOWN && isConst)
-    {
-        std::string castOp = "__int64->" + tree->TypeToString(lhsType);
-        int idx = triadGen->GetNextIndex();
-        triadGen->AddTriad(castOp, inner);
-        rhs = "(" + std::to_string(idx) + ")";
-    }
+	if (lhsType != TYPE___INT64 && lhsType != TYPE_UNKNOWN && isConst)
+	{
+		triadGen->PushOperand(inner);
+		triadGen->GenTypeCast(tree->TypeToString(lhsType));
+		rhs = triadGen->PopOperand();
+	}
 
-    triadGen->AddTriad("=", currentLHS->name, rhs);
-    currentLHS = nullptr;
-}
-void Translate::PushOperand(TypeLex lex)
-{
-    char* end;
-    long val = strtol(lex, &end, 10);
-
-    if (*end == '\0')
-    {
-        triadGen->PushOperand(lex);
-        return;
-    }
-
-    val = strtol(lex, &end, 16);
-    if (*end == '\0')
-    {
-        triadGen->PushOperand(lex);
-        return;
-    }
-
-    Symbol* sym = tree->FindSymbol(lex);
-    if (!sym) scanner->PrintError("Undeclared identifier", lex);
-    triadGen->PushOperand(lex);
+	triadGen->AddTriad("=", currentLHS->name, rhs);
+	currentLHS = nullptr;
 }
 
-void Translate::CallFunc(TypeLex lex)
+void Translate::PushOperand(const std::string& lex)
 {
-    Symbol* sym = tree->FindSymbol(lex);
-    if (!sym) scanner->PrintError("Undeclared identifier", lex);
+	char* end;
+	long val = strtol(lex.c_str(), &end, 10);
+	if (*end == '\0')
+	{
+		triadGen->PushOperand(lex);
+		return;
+	}
+	val = strtol(lex.c_str(), &end, 16);
+	if (*end == '\0')
+	{
+		triadGen->PushOperand(lex);
+		return;
+	}
+	Symbol* sym = tree->FindSymbol(lex);
+	if (!sym) scanner->PrintError("Undeclared identifier", lex);
+	triadGen->PushOperand(lex);
+}
 
-    bool pushResult = (sym->type != TYPE_VOID);
-    triadGen->GenCall(lex, pushResult);
-    currentLHS = nullptr;
+void Translate::CallFunc(const std::string& lex)
+{
+	Symbol* sym = tree->FindSymbol(lex);
+	if (!sym) scanner->PrintError("Undeclared identifier", lex);
+
+	bool pushResult = (sym->type != TYPE_VOID);
+	triadGen->GenCall(lex, pushResult);
+	currentLHS = nullptr;
 }
 
 void Translate::ArrayElem()
 {
-    triadGen->GenArrayElement();
+	triadGen->GenArrayElement();
 }
 
 void Translate::GenArrayAssign()
 {
-    triadGen->GenArrayAssign();
-}
-
-void Translate::DeleteLevel()
-{
-    tree->ExitScope();
+	triadGen->GenArrayAssign();
 }
 
 void Translate::StartArray()
 {
-    currentArraySize = 0;
+	currentArraySize = 0;
 }
 
 void Translate::EndArray()
 {
-    if (!initList.empty() && !currentArrayName.empty())
-    {
-        Symbol* sym = tree->FindSymbol(currentArrayName);
-        if (sym)
-        {
-            for (size_t i = 0; i < initList.size(); ++i)
-            {
-                triadGen->PushOperand(currentArrayName);
-                triadGen->PushOperand(std::to_string(i));
-                triadGen->GenArrayElement();
+	if (!initList.empty() && !currentArrayName.empty())
+	{
+		Symbol* sym = tree->FindSymbol(currentArrayName);
+		if (sym)
+		{
+			for (size_t i = 0; i < initList.size(); ++i)
+			{
+				triadGen->PushOperand(currentArrayName);
+				triadGen->PushOperand(std::to_string(i));
+				triadGen->GenArrayElement();
 
-                std::string val = initList[i];
-                std::string inner = val;
-                if (!inner.empty() && inner.front() == '(' && inner.back() == ')')
-                    inner = inner.substr(1, inner.size() - 2);
+				std::string rawVal = initList[i];
+				std::string inner = rawVal;
+				if (!inner.empty() && inner.front() == '(' && inner.back() == ')')
+					inner = inner.substr(1, inner.size() - 2);
 
-                char* end;
-                strtol(inner.c_str(), &end, 0);
-                bool isConst = (*end == '\0' && end != inner.c_str());
+				char* end;
+				strtol(inner.c_str(), &end, 0);
+				bool isConst = (*end == '\0' && end != inner.c_str());
 
-                if (sym->type != TYPE___INT64 && isConst)
-                {
-                    std::string castOp = "__int64->" + tree->TypeToString(sym->type);
-                    int idx = triadGen->GetNextIndex();
-                    triadGen->AddTriad(castOp, inner);
-                    val = "(" + std::to_string(idx) + ")";
-                }
-                triadGen->PushOperand(val);
-                triadGen->GenArrayAssign();
-            }
-        }
-        initList.clear();
-    }
-    currentArrayName.clear();
-    currentArraySize = 0;
+				if (sym->type != TYPE___INT64 && isConst)
+				{
+					triadGen->PushOperand(inner);
+					triadGen->GenTypeCast(tree->TypeToString(sym->type));
+				}
+				else
+				{
+					triadGen->PushOperand(rawVal);
+				}
+
+				triadGen->GenArrayAssign();
+			}
+		}
+		initList.clear();
+	}
+	currentArrayName.clear();
+	currentArraySize = 0;
 }
 
-void Translate::SetArraySize(TypeLex lex)
+void Translate::SetArraySize(const std::string& lex)
 {
-    char* end;
-    currentArraySize = (int)strtol(lex, &end, 0);
-    if (!currentDeclId.empty())
-    {
-        Symbol* sym = tree->FindSymbol(currentDeclId);
-        if (sym)
-        {
-            sym->kind = OBJECT_ARRAY;
-            sym->arraySize = currentArraySize;
-            currentArrayName = currentDeclId;
-            currentArrayType = sym->type;
-        }
-    }
+	char* end;
+	currentArraySize = (int)strtol(lex.c_str(), &end, 0);
+	if (!currentDeclId.empty())
+	{
+		Symbol* sym = tree->FindSymbol(currentDeclId);
+		if (sym)
+		{
+			sym->kind = OBJECT_ARRAY;
+			sym->arraySize = currentArraySize;
+			currentArrayName = currentDeclId;
+			currentArrayType = sym->type;
+		}
+	}
 }
 
 void Translate::GenAdd()
 {
-    triadGen->GenBinary("+");
+	triadGen->GenBinary("+");
 }
 
 void Translate::GenSub()
 {
-    triadGen->GenBinary("-");
+	triadGen->GenBinary("-");
 }
 
 void Translate::GenMul()
 {
-    triadGen->GenBinary("*");
+	triadGen->GenBinary("*");
 }
 
 void Translate::GenDiv()
 {
-    triadGen->GenBinary("/");
+	triadGen->GenBinary("/");
 }
 
 void Translate::GenMod()
 {
-    triadGen->GenBinary("%");
+	triadGen->GenBinary("%");
 }
 
 void Translate::GenLt()
 {
-    triadGen->GenBinary("<");
+	triadGen->GenBinary("<");
 }
 
 void Translate::GenLe()
 {
-    triadGen->GenBinary("<=");
+	triadGen->GenBinary("<=");
 }
 
 void Translate::GenGt()
 {
-    triadGen->GenBinary(">");
+	triadGen->GenBinary(">");
 }
 
 void Translate::GenGe()
 {
-    triadGen->GenBinary(">=");
+	triadGen->GenBinary(">=");
 }
 
 void Translate::GenEq()
 {
-    triadGen->GenBinary("==");
+	triadGen->GenBinary("==");
 }
 
 void Translate::GenNe()
 {
-    triadGen->GenBinary("!=");
+	triadGen->GenBinary("!=");
 }
 
 void Translate::GenNeg()
 {
-    triadGen->GenUnary("-");
+	triadGen->GenUnary("-");
 }
 
 void Translate::GenIf()
 {
-    triadGen->GenIf();
+	triadGen->GenIf();
 }
 
 void Translate::GenElse()
 {
-    triadGen->GenElse();
+	triadGen->GenElse();
 }
 
 void Translate::GenEndIf()
 {
-    triadGen->GenEndIf();
+	triadGen->GenEndIf();
 }
 
 void Translate::OptimizeTriads()
 {
-    Optimizer optimizer(triadGen);
-    optimizer.Optimize();
+	triadGen->SetLocalVars(localVarNames);
+	triadGen->Optimize();
+	localVarNames.clear();
 }

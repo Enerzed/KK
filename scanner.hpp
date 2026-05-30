@@ -1,3 +1,4 @@
+/* scanner.hpp */
 #pragma once
 
 #include <iostream>
@@ -5,26 +6,31 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
+#include <cctype>
+#include <unordered_map>
 
 #include "defs.hpp"
-
 
 class TScanner
 {
 private:
-	TypeMod text;
-	int pointer;
+	std::string text;
+	int pointer = 0;
 	int lineCounter = 1;
 	int positionInLine = 0;
 	std::vector<int> breakLinePositions;
 
 public:
-	TScanner(std::string);
+	TScanner(const std::string& fileName);
 	~TScanner();
-	void SetPointer(int);
-	int GetPointer();
-	void PrintError(std::string, std::string);
-	void PrintWarning(std::string, std::string);
-	int Scanner(TypeLex);
-	void GetData(std::string);
+
+	void SetPointer(int newPointer);
+	int GetPointer() const;
+
+	void PrintError(const std::string& error, const std::string& text = "");
+	void PrintWarning(const std::string& warning, const std::string& text = "");
+
+	int Scanner(std::string& lex);
+	void GetData(const std::string& fileName);
 };

@@ -1,3 +1,5 @@
+/* ll1.hpp */
+
 #pragma once
 
 #include <vector>
@@ -14,7 +16,7 @@ private:
 	Translate* translate;
 	std::vector <int> stack;
 	int currentToken, prevToken;
-	TypeLex lex, prevLex;
+	std::string lex, prevLex;
 
 public:
 	TLL1(TScanner* scanner);
