@@ -1,0 +1,2455 @@
+﻿/* defs.hpp */
+
+#pragma once
+
+
+#include <string>
+
+
+/** Tokens **/
+#define TIdent				1
+#define TConst10			11
+#define TConst16			12
+#define TInt				21
+#define TShort				22
+#define TLong				23
+#define T__Int64			24
+#define TChar				25
+#define TIf					31
+#define TElse				32
+#define TMain				33
+#define TVoid				34
+#define TComma				41
+#define TSemicolon			42
+#define TLeftBracket		43
+#define TRightBracket		44
+#define TLeftBrace			45
+#define TRightBrace			46
+#define TLeftSquareBracket	47
+#define TRightSquareBracket 48
+#define TAdd				51
+#define TSub				52
+#define TMul				53
+#define TDiv				54
+#define TMod				55
+#define TEval				56
+#define TEq					57
+#define TNe					58
+#define TGt					59
+#define TLt					60
+#define TGe					61
+#define TLe					62
+#define TEnd				71
+#define TErr				72
+
+
+/** Nonterminals **/
+#define TPROGRAM						100
+#define TDESCRIPTORS					101
+#define TDESCRIPTOR						102
+#define TDATA							103
+#define TTYPE							104
+#define TLIST							105
+#define TLIST_END						106
+#define TELEMENT						107
+#define TELEMENT_END					108
+#define TARRAY_END						109
+#define TSIZE							110
+#define TARRAY_EXPRESSION				111
+#define TARRAY_LIST						112
+#define TARRAY_LIST_END					113
+#define TFUNCTION						114
+#define TCOMPOSITE_OPERATOR				115
+#define TOPERATORS_AND_DESCRIPTORS		116
+#define TOPERATORS_AND_DESCRIPTORS_END	117
+#define TBLOCK_ELEMENT					118
+#define TOPERATOR						119
+#define TEMPTY_OPERATOR					120
+#define TCONDITION						121
+#define TCONDITION_END					122
+#define TOPERATOR_ID					123
+#define TOPERATOR_ID_END				124
+#define TEXPRESSION						125
+#define TEXPRESSION_END					126
+#define TCOMPARISON						127
+#define TCOMPARISON_END					128
+#define TADDENDUM						129
+#define TADDENDUM_END					130
+#define TMULTIPLICAND					131
+#define TMULTIPLICAND_END				132
+#define TUNARY							133
+#define TELEMENTARY						134
+
+
+/** Operational symbols **/
+#define T_ACTION_START_DATA			201
+#define T_ACTION_END_DATA			202
+#define T_ACTION_SET_ID				203
+#define T_ACTION_SET_TYPE			205
+#define T_ACTION_START_FUNC			206
+#define T_ACTION_END_FUNC			207
+#define T_ACTION_NEW_LEVEL			208
+#define T_ACTION_RETURN_LEVEL		209
+#define T_ACTION_FIND_ID			210
+#define T_ACTION_INIT_VALUE			212
+#define T_ACTION_GEN_IF				213
+#define T_ACTION_GEN_ELSE			214
+#define T_ACTION_GEN_ENDIF			215
+#define T_ACTION_GEN_ASSIGN			216
+#define T_ACTION_GEN_ARRAY_ASSIGN	217
+#define T_ACTION_GEN_ADD			218
+#define T_ACTION_GEN_SUB			219
+#define T_ACTION_GEN_MUL			220
+#define T_ACTION_GEN_DIV			221
+#define T_ACTION_GEN_MOD			222
+#define T_ACTION_GEN_LT				223
+#define T_ACTION_GEN_LE				224
+#define T_ACTION_GEN_GT				225
+#define T_ACTION_GEN_GE				226
+#define T_ACTION_GEN_EQ				227
+#define T_ACTION_GEN_NE				228
+#define T_ACTION_PUSH_OPERAND		229
+#define T_ACTION_CALL_FUNC			230
+#define T_ACTION_ARRAY_ELEM			231
+#define T_ACTION_START_ARRAY		233
+#define T_ACTION_END_ARRAY			234
+#define T_ACTION_GEN_NEG            235
+#define T_ACTION_FIND_ID_FOR_CALL   236
+#define T_ACTION_SET_ARRAY_SIZE		237
+/* ll1.cpp */
+
+#include "ll1.hpp"
+
+
+TLL1::TLL1(TScanner* scanner)
+{
+	this->scanner = scanner;
+	translate = new Translate(scanner);
+	stack.push_back(TEnd);
+	stack.push_back(TPROGRAM);
+	prevToken = TEnd;
+	prevLex[0] = '\0';
+	NextToken();
+}
+
+TLL1::~TLL1()
+{
+	stack.clear();
+	delete translate;
+}
+
+void TLL1::NextToken()
+{
+	currentToken = scanner->Scanner(lex);
+	//std::cout << lex << std::endl;
+}
+
+bool TLL1::Analyze()
+{
+	while (!stack.empty())
+	{
+		int top = stack.back();
+		stack.pop_back();
+
+		// Semantic
+		if (top >= 200)
+		{
+			translate->ExecuteAction(top, prevLex, prevToken);
+		}
+		// Terminal
+		else if (top < 100)
+		{
+			if (top == currentToken)
+			{
+				if (top == TEnd) break;
+				prevToken = currentToken;
+				prevLex = lex;
+				NextToken();
+			}
+			else
+			{
+				scanner->PrintError("Wrong token ", lex);
+			}
+		}
+		// Nonterminal
+		else
+		{
+			switch (top)
+			{
+			case TPROGRAM:
+				stack.push_back(TDESCRIPTORS);
+				break;
+
+			case TDESCRIPTORS:
+				if (currentToken == TInt || currentToken == TShort ||
+					currentToken == TLong || currentToken == T__Int64 ||
+					currentToken == TChar || currentToken == TVoid)
+				{
+					stack.push_back(TDESCRIPTORS);
+					stack.push_back(TDESCRIPTOR);
+				}
+				else if (currentToken == TEnd) {}
+				else scanner->PrintError("Expected descriptor or EOF got ", lex);
+				break;
+
+			case TDESCRIPTOR:
+				if (currentToken == TInt || currentToken == TShort ||
+					currentToken == TLong || currentToken == T__Int64 ||
+					currentToken == TChar)
+					stack.push_back(TDATA);
+				else if (currentToken == TVoid)
+					stack.push_back(TFUNCTION);
+				else scanner->PrintError("Expected type or void got ", lex);
+				break;
+
+			case TDATA:
+				stack.push_back(T_ACTION_END_DATA);
+				stack.push_back(TSemicolon);
+				stack.push_back(TLIST);
+				stack.push_back(TTYPE);
+				stack.push_back(T_ACTION_START_DATA);
+				break;
+
+			case TTYPE:
+				if (currentToken == TInt || currentToken == TShort ||
+					currentToken == TLong || currentToken == T__Int64 ||
+					currentToken == TChar)
+				{
+					stack.push_back(T_ACTION_SET_TYPE);
+					stack.push_back(currentToken);
+				}
+				else scanner->PrintError("Expected type got", lex);
+				break;
+
+			case TLIST:
+				stack.push_back(TLIST_END);
+				stack.push_back(TELEMENT);
+				break;
+
+			case TLIST_END:
+				if (currentToken == TComma)
+				{
+					stack.push_back(TLIST_END);
+					stack.push_back(TELEMENT);
+					stack.push_back(TComma);
+				}
+				else if (currentToken != TSemicolon)
+					scanner->PrintError("Expected comma or semicolon got ", lex);
+				break;
+
+			case TELEMENT:
+				if (currentToken == TIdent)
+				{
+					stack.push_back(TELEMENT_END);
+					stack.push_back(T_ACTION_SET_ID);
+					stack.push_back(TIdent);
+				}
+				else scanner->PrintError("Expected identifier got ", lex);
+				break;
+
+			case TELEMENT_END:
+				if (currentToken == TLeftSquareBracket)
+				{
+					stack.push_back(TARRAY_END);
+					stack.push_back(TRightSquareBracket);
+					stack.push_back(TSIZE);
+					stack.push_back(TLeftSquareBracket);
+					stack.push_back(T_ACTION_START_ARRAY);
+				}
+				else if (currentToken == TEval)
+				{
+					int saved_pos = scanner->GetPointer();
+					std::string next_lex;
+					int nextToken = scanner->Scanner(next_lex);
+					scanner->SetPointer(saved_pos);
+					if (nextToken == TLeftBrace)
+					{
+						stack.push_back(T_ACTION_END_ARRAY);
+						stack.push_back(TRightBrace);
+						stack.push_back(TARRAY_LIST);
+						stack.push_back(T_ACTION_INIT_VALUE);
+						stack.push_back(TLeftBrace);
+						stack.push_back(TEval);
+					}
+					else
+					{
+						stack.push_back(T_ACTION_INIT_VALUE);
+						stack.push_back(TEXPRESSION);
+						stack.push_back(TEval);
+					}
+				}
+				else if (currentToken != TComma && currentToken != TSemicolon)
+					scanner->PrintError("Expected =, [ or ;", lex);
+				break;
+
+			case TARRAY_END:
+				if (currentToken == TEval)
+				{
+					stack.push_back(T_ACTION_END_ARRAY);
+					stack.push_back(TRightBrace);
+					stack.push_back(TARRAY_EXPRESSION);
+					stack.push_back(T_ACTION_INIT_VALUE);
+					stack.push_back(TLeftBrace);
+					stack.push_back(TEval);
+				}
+				break;
+
+			case TSIZE:
+				if (currentToken == TConst10 || currentToken == TConst16)
+				{
+					stack.push_back(T_ACTION_SET_ARRAY_SIZE);
+					stack.push_back(currentToken);
+				}
+				else scanner->PrintError("Expected const10 or const16 got ", lex);
+				break;
+
+			case TARRAY_EXPRESSION:
+				if (currentToken == TIdent || currentToken == TConst10 ||
+					currentToken == TConst16 || currentToken == TLeftBracket ||
+					currentToken == TAdd || currentToken == TSub)
+					stack.push_back(TARRAY_LIST);
+				else if (currentToken != TRightBrace)
+					scanner->PrintError("Expected expression or } got ", lex);
+				break;
+
+			case TARRAY_LIST:
+				stack.push_back(TARRAY_LIST_END);
+				stack.push_back(T_ACTION_INIT_VALUE);
+				stack.push_back(TEXPRESSION);
+				break;
+
+			case TARRAY_LIST_END:
+				if (currentToken == TComma)
+				{
+					stack.push_back(TARRAY_LIST_END);
+					stack.push_back(T_ACTION_INIT_VALUE);
+					stack.push_back(TEXPRESSION);
+					stack.push_back(TComma);
+				}
+				else if (currentToken != TRightBrace)
+					scanner->PrintError("Expected , or } got ", lex);
+				break;
+
+			case TFUNCTION:
+				if (currentToken == TVoid)
+				{
+					stack.push_back(T_ACTION_END_FUNC);
+					stack.push_back(TCOMPOSITE_OPERATOR);
+					stack.push_back(TRightBracket);
+					stack.push_back(TLeftBracket);
+					stack.push_back(T_ACTION_START_FUNC);
+					stack.push_back(TIdent);
+					stack.push_back(TVoid);
+				}
+				else scanner->PrintError("Expected void got ", lex);
+				break;
+
+			case TCOMPOSITE_OPERATOR:
+				stack.push_back(T_ACTION_RETURN_LEVEL);
+				stack.push_back(TOPERATORS_AND_DESCRIPTORS);
+				stack.push_back(T_ACTION_NEW_LEVEL);
+				stack.push_back(TLeftBrace);
+				break;
+
+			case TOPERATORS_AND_DESCRIPTORS:
+				stack.push_back(TOPERATORS_AND_DESCRIPTORS_END);
+				stack.push_back(TBLOCK_ELEMENT);
+				break;
+
+			case TOPERATORS_AND_DESCRIPTORS_END:
+				if (currentToken == TInt || currentToken == TShort ||
+					currentToken == TLong || currentToken == T__Int64 ||
+					currentToken == TChar || currentToken == TLeftBrace ||
+					currentToken == TSemicolon || currentToken == TIf ||
+					currentToken == TIdent)
+				{
+					stack.push_back(TOPERATORS_AND_DESCRIPTORS_END);
+					stack.push_back(TBLOCK_ELEMENT);
+				}
+				else if (currentToken == TRightBrace)
+				{
+					NextToken();
+				}
+				else
+				{
+					scanner->PrintError("Expected operator or descriptor got ", lex);
+				}
+				break;
+
+			case TBLOCK_ELEMENT:
+				if (currentToken == TInt || currentToken == TShort ||
+					currentToken == TLong || currentToken == T__Int64 ||
+					currentToken == TChar)
+					stack.push_back(TDATA);
+				else if (currentToken == TLeftBrace)
+					stack.push_back(TCOMPOSITE_OPERATOR);
+				else if (currentToken == TSemicolon)
+					stack.push_back(TEMPTY_OPERATOR);
+				else if (currentToken == TIf)
+					stack.push_back(TCONDITION);
+				else if (currentToken == TIdent)
+					stack.push_back(TOPERATOR_ID);
+				else scanner->PrintError("Wrong description of data or function", lex);
+				break;
+
+			case TEMPTY_OPERATOR:
+				if (currentToken == TSemicolon)
+					stack.push_back(TSemicolon);
+				else scanner->PrintError("Expected ; got ", lex);
+				break;
+
+			case TCONDITION:
+				if (currentToken == TIf)
+				{
+					stack.push_back(TCONDITION_END);
+					stack.push_back(TCOMPOSITE_OPERATOR);
+					stack.push_back(T_ACTION_GEN_IF);
+					stack.push_back(TRightBracket);
+					stack.push_back(TEXPRESSION);
+					stack.push_back(TLeftBracket);
+					stack.push_back(TIf);
+				}
+				else scanner->PrintError("Expected if got ", lex);
+				break;
+
+			case TCONDITION_END:
+				if (currentToken == TElse)
+				{
+					stack.push_back(T_ACTION_GEN_ENDIF);
+					stack.push_back(TCOMPOSITE_OPERATOR);
+					stack.push_back(T_ACTION_GEN_ELSE);
+					stack.push_back(TElse);
+				}
+				else
+				{
+					stack.push_back(T_ACTION_GEN_ENDIF);
+				}
+				break;
+
+			case TOPERATOR_ID:
+				if (currentToken == TIdent)
+				{
+					stack.push_back(TOPERATOR_ID_END);
+					stack.push_back(TIdent);
+				}
+				else scanner->PrintError("Expected identifier got ", lex);
+				break;
+
+			case TOPERATOR_ID_END:
+				if (currentToken == TLeftBracket)
+				{
+					stack.push_back(TSemicolon);
+					stack.push_back(TRightBracket);
+					stack.push_back(TLeftBracket);
+					stack.push_back(T_ACTION_CALL_FUNC);
+					stack.push_back(T_ACTION_FIND_ID_FOR_CALL);
+				}
+				else if (currentToken == TEval)
+				{
+					stack.push_back(TSemicolon);
+					stack.push_back(T_ACTION_GEN_ASSIGN);
+					stack.push_back(TEXPRESSION);
+					stack.push_back(TEval);
+					stack.push_back(T_ACTION_FIND_ID);
+				}
+				else if (currentToken == TLeftSquareBracket)
+				{
+					stack.push_back(TSemicolon);
+					stack.push_back(T_ACTION_GEN_ARRAY_ASSIGN);
+					stack.push_back(TEXPRESSION);
+					stack.push_back(TEval);
+					stack.push_back(T_ACTION_ARRAY_ELEM);
+					stack.push_back(TRightSquareBracket);
+					stack.push_back(TEXPRESSION);
+					stack.push_back(TLeftSquareBracket);
+					stack.push_back(T_ACTION_PUSH_OPERAND);
+					stack.push_back(T_ACTION_FIND_ID);
+				}
+				else scanner->PrintError("Expected (, = or [", lex);
+				break;
+
+			case TEXPRESSION:
+				stack.push_back(TEXPRESSION_END);
+				stack.push_back(TCOMPARISON);
+				break;
+
+			case TEXPRESSION_END:
+				if (currentToken == TEq || currentToken == TNe)
+				{
+					int op = currentToken;
+					stack.push_back(TEXPRESSION_END);
+					if (op == TEq) stack.push_back(T_ACTION_GEN_EQ);
+					else stack.push_back(T_ACTION_GEN_NE);
+					stack.push_back(TCOMPARISON);
+					stack.push_back(op);
+				}
+				break;
+
+			case TCOMPARISON:
+				stack.push_back(TCOMPARISON_END);
+				stack.push_back(TADDENDUM);
+				break;
+
+			case TCOMPARISON_END:
+				if (currentToken == TLt || currentToken == TGt || currentToken == TLe || currentToken == TGe)
+				{
+					int op = currentToken;
+					stack.push_back(TCOMPARISON_END);
+					if (op == TLt) stack.push_back(T_ACTION_GEN_LT);
+					else if (op == TGt) stack.push_back(T_ACTION_GEN_GT);
+					else if (op == TLe) stack.push_back(T_ACTION_GEN_LE);
+					else stack.push_back(T_ACTION_GEN_GE);
+					stack.push_back(TADDENDUM);
+					stack.push_back(op);
+				}
+				break;
+
+			case TADDENDUM:
+				stack.push_back(TADDENDUM_END);
+				stack.push_back(TMULTIPLICAND);
+				break;
+
+			case TADDENDUM_END:
+				if (currentToken == TAdd || currentToken == TSub)
+				{
+					int op = currentToken;
+					stack.push_back(TADDENDUM_END);
+					if (op == TAdd) stack.push_back(T_ACTION_GEN_ADD);
+					else stack.push_back(T_ACTION_GEN_SUB);
+					stack.push_back(TMULTIPLICAND);
+					stack.push_back(op);
+				}
+				break;
+
+			case TMULTIPLICAND:
+				stack.push_back(TMULTIPLICAND_END);
+				stack.push_back(TUNARY);
+				break;
+
+			case TMULTIPLICAND_END:
+				if (currentToken == TMul || currentToken == TDiv || currentToken == TMod)
+				{
+					int op = currentToken;
+					stack.push_back(TMULTIPLICAND_END);
+					if (op == TMul) stack.push_back(T_ACTION_GEN_MUL);
+					else if (op == TDiv) stack.push_back(T_ACTION_GEN_DIV);
+					else stack.push_back(T_ACTION_GEN_MOD);
+					stack.push_back(TUNARY);
+					stack.push_back(op);
+				}
+				break;
+
+			case TUNARY:
+				if (currentToken == TAdd)
+				{
+					stack.push_back(TELEMENTARY);
+					stack.push_back(TAdd);
+				}
+				else if (currentToken == TSub)
+				{
+					stack.push_back(T_ACTION_GEN_NEG);
+					stack.push_back(TELEMENTARY);
+					stack.push_back(TSub);
+				}
+				else
+					stack.push_back(TELEMENTARY);
+				break;
+
+			case TELEMENTARY:
+				if (currentToken == TIdent)
+				{
+					int saved_pos = scanner->GetPointer();
+					std::string next_lex;
+					int nextToken = scanner->Scanner(next_lex);
+					scanner->SetPointer(saved_pos);
+					if (nextToken == TLeftSquareBracket)
+					{
+						stack.push_back(T_ACTION_ARRAY_ELEM);
+						stack.push_back(TRightSquareBracket);
+						stack.push_back(TEXPRESSION);
+						stack.push_back(TLeftSquareBracket);
+						stack.push_back(T_ACTION_PUSH_OPERAND);
+						stack.push_back(TIdent);
+					}
+					else
+					{
+						stack.push_back(T_ACTION_PUSH_OPERAND);
+						stack.push_back(TIdent);
+					}
+				}
+				else if (currentToken == TConst10 || currentToken == TConst16)
+				{
+					stack.push_back(T_ACTION_PUSH_OPERAND);
+					stack.push_back(currentToken);
+				}
+				else if (currentToken == TLeftBracket)
+				{
+					stack.push_back(TRightBracket);
+					stack.push_back(TEXPRESSION);
+					stack.push_back(TLeftBracket);
+				}
+				else
+				{
+					scanner->PrintError("Expected identifier, constant or ( got", lex);
+				}
+				break;
+
+			default:
+				scanner->PrintError("Unknown token got", lex);
+			}
+		}
+	}
+
+	if (currentToken != TEnd)
+	{
+		scanner->PrintError("Expected end got ", lex);
+		return false;
+	}
+	return true;
+}
+/* ll1.hpp */
+
+#pragma once
+
+#include <vector>
+
+#include "defs.hpp"
+#include "scanner.hpp"
+#include "translate.hpp"
+
+
+class TLL1
+{
+private:
+	TScanner* scanner;
+	Translate* translate;
+	std::vector <int> stack;
+	int currentToken, prevToken;
+	std::string lex, prevLex;
+
+public:
+	TLL1(TScanner* scanner);
+	~TLL1();
+	void NextToken();
+	bool Analyze();
+	Translate* GetTranslate() { return translate; }
+};
+/* scanner.cpp */
+
+#include "scanner.hpp"
+
+static std::unordered_map<std::string, int> keywordMap =
+{
+	{"int", TInt}, {"short", TShort}, {"long", TLong}, {"__int64", T__Int64},
+	{"char", TChar}, {"if", TIf}, {"else", TElse}, {"void", TVoid}
+};
+
+TScanner::TScanner(const std::string& fileName)
+{
+	GetData(fileName);
+	pointer = 0;
+}
+
+TScanner::~TScanner()
+{
+	breakLinePositions.clear();
+}
+
+void TScanner::SetPointer(int newPointer)
+{
+	pointer = newPointer;
+}
+
+int TScanner::GetPointer() const
+{
+	return pointer;
+}
+
+void TScanner::PrintError(const std::string& error, const std::string& text)
+{
+	if (breakLinePositions.empty())
+		positionInLine = static_cast<int>(pointer);
+	else
+		positionInLine = static_cast<int>(pointer - breakLinePositions.back());
+	std::cout << "Line " << lineCounter << " position " << positionInLine << ": " << error;
+	if (!text.empty()) std::cout << " " << text;
+	std::cout << std::endl;
+	exit(1);
+}
+
+void TScanner::PrintWarning(const std::string& error, const std::string& text)
+{
+	if (breakLinePositions.empty())
+		positionInLine = static_cast<int>(pointer);
+	else
+		positionInLine = static_cast<int>(pointer - breakLinePositions.back());
+	std::cout << "Line " << lineCounter << " position " << positionInLine << ": " << error;
+	if (!text.empty()) std::cout << " " << text;
+	std::cout << std::endl;
+}
+
+int TScanner::Scanner(std::string& lex)
+{
+	lex.clear();
+start:
+	while (pointer < text.size() && (text[pointer] == ' ' || text[pointer] == '\t' || text[pointer] == '\n'))
+	{
+		if (text[pointer] == '\n')
+		{
+			if (std::find(breakLinePositions.begin(), breakLinePositions.end(), pointer) == breakLinePositions.end())
+			{
+				lineCounter++;
+				breakLinePositions.push_back(pointer);
+			}
+		}
+		pointer++;
+	}
+
+	if (pointer >= text.size())
+	{
+		lex = "#";
+		return TEnd;
+	}
+
+	// Comments
+	if (text[pointer] == '/')
+	{
+		if (pointer + 1 < text.size() && text[pointer + 1] == '/')
+		{
+			pointer += 2;
+			while (pointer < text.size() && text[pointer] != '\n') pointer++;
+			goto start;
+		}
+		else if (pointer + 1 < text.size() && text[pointer + 1] == '*')
+		{
+			pointer += 2;
+			while (pointer + 1 < text.size() && !(text[pointer] == '*' && text[pointer + 1] == '/'))
+			{
+				if (text[pointer] == '\n')
+				{
+					lineCounter++;
+					breakLinePositions.push_back(pointer);
+				}
+				pointer++;
+			}
+			if (pointer + 1 >= text.size())
+			{
+				PrintError("Unterminated multi-line comment");
+				return TErr;
+			}
+			pointer += 2;
+			goto start;
+		}
+		else
+		{
+			lex = "/";
+			pointer++;
+			return TDiv;
+		}
+	}
+
+	if (text[pointer] == '0' && pointer + 1 < text.size() && (text[pointer + 1] == 'x' || text[pointer + 1] == 'X'))
+	{
+		lex += text[pointer++]; // 0
+		lex += text[pointer++]; // x
+		if (pointer >= text.size() || !isxdigit(text[pointer]))
+		{
+			PrintError("Invalid hexadecimal constant", lex);
+			return TErr;
+		}
+		while (pointer < text.size() && isxdigit(text[pointer]))
+		{
+			lex += text[pointer++];
+		}
+		return TConst16;
+	}
+
+	if (isdigit(text[pointer]))
+	{
+		while (pointer < text.size() && isdigit(text[pointer]))
+		{
+			lex += text[pointer++];
+		}
+		return TConst10;
+	}
+
+	if (isalpha(text[pointer]) || text[pointer] == '_')
+	{
+		while (pointer < text.size() && (isalnum(text[pointer]) || text[pointer] == '_'))
+		{
+			lex += text[pointer++];
+		}
+		auto it = keywordMap.find(lex);
+		if (it != keywordMap.end())
+		{
+			return it->second;
+		}
+		return TIdent;
+	}
+
+	char c = text[pointer++];
+	lex = c;
+	switch (c)
+	{
+	case ',': return TComma;
+	case ';': return TSemicolon;
+	case '(': return TLeftBracket;
+	case ')': return TRightBracket;
+	case '{': return TLeftBrace;
+	case '}': return TRightBrace;
+	case '[': return TLeftSquareBracket;
+	case ']': return TRightSquareBracket;
+	case '+': return TAdd;
+	case '-': return TSub;
+	case '*': return TMul;
+	case '%': return TMod;
+	case '=':
+		if (pointer < text.size() && text[pointer] == '=')
+		{
+			pointer++;
+			lex += '=';
+			return TEq;
+		}
+		return TEval;
+	case '!':
+		if (pointer < text.size() && text[pointer] == '=')
+		{
+			pointer++;
+			lex += '=';
+			return TNe;
+		}
+		PrintError("Unexpected token", lex);
+		return TErr;
+	case '>':
+		if (pointer < text.size() && text[pointer] == '=')
+		{
+			pointer++;
+			lex += '=';
+			return TGe;
+		}
+		return TGt;
+	case '<':
+		if (pointer < text.size() && text[pointer] == '=')
+		{
+			pointer++;
+			lex += '=';
+			return TLe;
+		}
+		return TLt;
+	default:
+		PrintError("Lexical error at", lex);
+		return TErr;
+	}
+}
+
+void TScanner::GetData(const std::string& fileName)
+{
+	std::ifstream file(fileName);
+	if (!file.is_open())
+	{
+		PrintError("Error opening file", fileName);
+		return;
+	}
+	std::stringstream buffer;
+	buffer << file.rdbuf();
+	text = buffer.str();
+	std::cout << text << std::endl;
+	std::cout << "_____________________________________________________________________________________________________" << std::endl;
+}
+/* scanner.hpp */
+#pragma once
+
+#include <iostream>
+#include <vector>
+#include <string>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <cctype>
+#include <unordered_map>
+
+#include "defs.hpp"
+
+class TScanner
+{
+private:
+	std::string text;
+	int pointer = 0;
+	int lineCounter = 1;
+	int positionInLine = 0;
+	std::vector<int> breakLinePositions;
+
+public:
+	TScanner(const std::string& fileName);
+	~TScanner();
+
+	void SetPointer(int newPointer);
+	int GetPointer() const;
+
+	void PrintError(const std::string& error, const std::string& text = "");
+	void PrintWarning(const std::string& warning, const std::string& text = "");
+
+	int Scanner(std::string& lex);
+	void GetData(const std::string& fileName);
+};
+/* trans.cpp */
+
+#include <iostream>
+#include <string>
+#include "defs.hpp"
+#include "scanner.hpp"
+#include "ll1.hpp"
+
+
+int main(int argc, char* argv[])
+{
+	std::string filename = (argc > 1) ? argv[1] : "input.txt";
+	TScanner scanner(filename);
+	TLL1 analyzer(&scanner);
+	if (analyzer.Analyze())
+	{
+		std::cout << "\nSyntax is correct\n";
+	}
+	return 0;
+}
+/* translate.cpp */
+
+#include "translate.hpp"
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
+
+
+Translate::Translate(TScanner* scanner)
+	: scanner(scanner), inDeclaration(false), currentArraySize(0)
+{
+	tree = new Tree(scanner);
+	triadGen = new TriadGenerator();
+	currentDataType = TYPE_UNKNOWN;
+	currentLHS = nullptr;
+}
+
+Translate::~Translate()
+{
+	OptimizeTriads();
+	triadGen->Print();
+	delete triadGen;
+	delete tree;
+}
+
+// Debug
+static const char* ActionName(int code)
+{
+	switch (code)
+	{
+	case T_ACTION_START_DATA:			return "START_DATA";
+	case T_ACTION_END_DATA:				return "END_DATA";
+	case T_ACTION_SET_ID:				return "SET_ID";
+	case T_ACTION_SET_TYPE:				return "SET_TYPE";
+	case T_ACTION_START_FUNC:			return "START_FUNC";
+	case T_ACTION_END_FUNC:				return "END_FUNC";
+	case T_ACTION_NEW_LEVEL:			return "NEW_LEVEL";
+	case T_ACTION_RETURN_LEVEL:			return "RETURN_LEVEL";
+	case T_ACTION_FIND_ID:				return "FIND_ID";
+	case T_ACTION_INIT_VALUE:			return "INIT_VALUE";
+	case T_ACTION_GEN_IF:				return "GEN_IF";
+	case T_ACTION_GEN_ELSE:				return "GEN_ELSE";
+	case T_ACTION_GEN_ENDIF:			return "GEN_ENDIF";
+	case T_ACTION_GEN_ASSIGN:			return "GEN_ASSIGN";
+	case T_ACTION_GEN_ARRAY_ASSIGN:		return "GEN_ARRAY_ASSIGN";
+	case T_ACTION_GEN_ADD:				return "GEN_ADD";
+	case T_ACTION_GEN_SUB:				return "GEN_SUB";
+	case T_ACTION_GEN_MUL:				return "GEN_MUL";
+	case T_ACTION_GEN_DIV:				return "GEN_DIV";
+	case T_ACTION_GEN_MOD:				return "GEN_MOD";
+	case T_ACTION_GEN_LT:				return "GEN_LT";
+	case T_ACTION_GEN_LE:				return "GEN_LE";
+	case T_ACTION_GEN_GT:				return "GEN_GT";
+	case T_ACTION_GEN_GE:				return "GEN_GE";
+	case T_ACTION_GEN_EQ:				return "GEN_EQ";
+	case T_ACTION_GEN_NE:				return "GEN_NE";
+	case T_ACTION_GEN_NEG:				return "GEN_NEG";
+	case T_ACTION_PUSH_OPERAND:			return "PUSH_OPERAND";
+	case T_ACTION_CALL_FUNC:			return "CALL_FUNC";
+	case T_ACTION_ARRAY_ELEM:			return "ARRAY_ELEM";
+	case T_ACTION_START_ARRAY:			return "START_ARRAY";
+	case T_ACTION_END_ARRAY:			return "END_ARRAY";
+	case T_ACTION_SET_ARRAY_SIZE:		return "SET_ARRAY_SIZE";
+	case T_ACTION_FIND_ID_FOR_CALL:		return "FIND_ID_FOR_CALL";
+	default:							return "UNKNOWN";
+	}
+}
+
+void Translate::ExecuteAction(int actionCode, const std::string& lex, int token)
+{
+	/*
+	 * Debug
+	std::cout << "[ACTION] " << ActionName(actionCode);
+	if (!lex.empty())
+		std::cout << " lex = " << lex << " ";
+	if (token != 0)
+		std::cout << " token = " << token;
+	std::cout << std::endl;
+	 * Debug
+	 */
+	switch (actionCode)
+	{
+	case T_ACTION_START_DATA:		StartDeclareData(); break;
+	case T_ACTION_END_DATA:			EndDeclareData(); break;
+	case T_ACTION_SET_ID:			SetId(lex); break;
+	case T_ACTION_SET_TYPE:			SetType(token); break;
+	case T_ACTION_START_FUNC:		StartFunction(lex); break;
+	case T_ACTION_END_FUNC:			EndFunction(); break;
+	case T_ACTION_NEW_LEVEL:		NewLevel(); break;
+	case T_ACTION_RETURN_LEVEL:		ReturnLevel(); break;
+	case T_ACTION_FIND_ID:			FindId(lex); break;
+	case T_ACTION_INIT_VALUE:		InitValue(); break;
+	case T_ACTION_GEN_IF:			GenIf(); break;
+	case T_ACTION_GEN_ELSE:			GenElse(); break;
+	case T_ACTION_GEN_ENDIF:		GenEndIf(); break;
+	case T_ACTION_GEN_ASSIGN:		GenAssign(); break;
+	case T_ACTION_GEN_ARRAY_ASSIGN:	GenArrayAssign(); break;
+	case T_ACTION_GEN_ADD:			GenAdd(); break;
+	case T_ACTION_GEN_SUB:			GenSub(); break;
+	case T_ACTION_GEN_MUL:			GenMul(); break;
+	case T_ACTION_GEN_DIV:			GenDiv(); break;
+	case T_ACTION_GEN_MOD:			GenMod(); break;
+	case T_ACTION_GEN_LT:			GenLt(); break;
+	case T_ACTION_GEN_LE:			GenLe(); break;
+	case T_ACTION_GEN_GT:			GenGt(); break;
+	case T_ACTION_GEN_GE:			GenGe(); break;
+	case T_ACTION_GEN_EQ:			GenEq(); break;
+	case T_ACTION_GEN_NE:			GenNe(); break;
+	case T_ACTION_GEN_NEG:			GenNeg(); break;
+	case T_ACTION_PUSH_OPERAND:		PushOperand(lex); break;
+	case T_ACTION_CALL_FUNC:		CallFunc(lex); break;
+	case T_ACTION_ARRAY_ELEM:		ArrayElem(); break;
+	case T_ACTION_START_ARRAY:		StartArray(); break;
+	case T_ACTION_END_ARRAY:		EndArray(); break;
+	case T_ACTION_SET_ARRAY_SIZE:	SetArraySize(lex); break;
+	case T_ACTION_FIND_ID_FOR_CALL:
+	{
+		Symbol* sym = tree->FindSymbol(lex);
+		if (!sym) scanner->PrintError("Undeclared identifier", lex);
+	}
+	break;
+	default: scanner->PrintError("Unknown semantic action", "");
+	}
+}
+
+void Translate::StartDeclareData()
+{
+	inDeclaration = true;
+	currentDataType = TYPE_UNKNOWN;
+	currentArraySize = 0;
+	initList.clear();
+}
+
+void Translate::EndDeclareData()
+{
+	inDeclaration = false;
+	currentArrayName.clear();
+}
+
+void Translate::SetId(const std::string& lex)
+{
+	if (inDeclaration)
+	{
+		TypeObject kind = (currentArraySize > 0) ? OBJECT_ARRAY : OBJECT_VARIABLE;
+		bool added = tree->AddSymbol(lex, kind, currentDataType, currentArraySize);
+		if (!added)
+		{
+			scanner->PrintError("Duplicate identifier", lex);
+		}
+		if (kind == OBJECT_ARRAY)
+		{
+			currentArrayName = lex;
+			currentArrayType = currentDataType;
+		}
+		currentDeclId = lex;
+		if (inFunction)
+		{
+			localVarNames.insert(lex);
+		}
+	}
+}
+
+void Translate::SetType(int token)
+{
+	currentDataType = tree->TokenToType(token);
+}
+
+void Translate::StartFunction(const std::string& lex)
+{
+	bool added = tree->AddSymbol(lex, OBJECT_FUNCTION, TYPE_VOID);
+	if (!added)
+	{
+		scanner->PrintError("Duplicate function name", lex);
+	}
+	triadGen->GenProc(lex);
+	triadGen->GenProlog();
+	triadGen->ClearKnownVars();
+	inFunction = true;
+	tree->EnterScope();
+}
+
+void Translate::EndFunction()
+{
+	triadGen->GenEpilog();
+	triadGen->GenRet();
+	triadGen->GenEndp();
+	inFunction = false;
+	tree->ExitScope();
+}
+
+void Translate::NewLevel()
+{
+	tree->EnterScope();
+	triadGen->ClearKnownVars();
+}
+
+void Translate::ReturnLevel()
+{
+	tree->ExitScope();
+	triadGen->ClearKnownVars();
+}
+
+void Translate::FindId(const std::string& lex)
+{
+	Symbol* sym = tree->FindSymbol(lex);
+	if (!sym) scanner->PrintError("Undeclared identifier", lex);
+	currentLHS = sym;
+}
+
+void Translate::InitValue()
+{
+	if (inDeclaration && !triadGen->IsStackEmpty())
+	{
+		std::string val = triadGen->PopOperand();
+		if (!currentArrayName.empty())
+		{
+			initList.push_back(val);
+		}
+		else if (!currentDeclId.empty())
+		{
+			Symbol* sym = tree->FindSymbol(currentDeclId);
+			if (sym)
+			{
+				currentLHS = sym;
+				triadGen->PushOperand(val);
+				GenAssign();
+			}
+		}
+	}
+}
+
+void Translate::GenAssign()
+{
+	if (!currentLHS) return;
+	std::string rhs = triadGen->PopOperand();
+	TypeData lhsType = currentLHS->type;
+
+	bool isDirect = (rhs.front() != '(');
+	std::string inner = rhs;
+	if (!isDirect && rhs.front() == '(' && rhs.back() == ')')
+		inner = rhs.substr(1, rhs.size() - 2);
+	else
+		inner = rhs;
+
+	char* end;
+	strtol(inner.c_str(), &end, 0);
+	bool isConstNumber = (*end == '\0' && end != inner.c_str());
+	bool isConst = isDirect && isConstNumber;
+
+	if (lhsType != TYPE___INT64 && lhsType != TYPE_UNKNOWN && isConst)
+	{
+		triadGen->PushOperand(inner);
+		triadGen->GenTypeCast(tree->TypeToString(lhsType));
+		rhs = triadGen->PopOperand();
+	}
+
+	triadGen->AddTriad("=", currentLHS->name, rhs);
+	currentLHS = nullptr;
+}
+
+void Translate::PushOperand(const std::string& lex)
+{
+	char* end;
+	long val = strtol(lex.c_str(), &end, 10);
+	if (*end == '\0')
+	{
+		triadGen->PushOperand(lex);
+		return;
+	}
+	val = strtol(lex.c_str(), &end, 16);
+	if (*end == '\0')
+	{
+		triadGen->PushOperand(lex);
+		return;
+	}
+	Symbol* sym = tree->FindSymbol(lex);
+	if (!sym) scanner->PrintError("Undeclared identifier", lex);
+	triadGen->PushOperand(lex);
+}
+
+void Translate::CallFunc(const std::string& lex)
+{
+	Symbol* sym = tree->FindSymbol(lex);
+	if (!sym) scanner->PrintError("Undeclared identifier", lex);
+
+	bool pushResult = (sym->type != TYPE_VOID);
+	triadGen->GenCall(lex, pushResult);
+	currentLHS = nullptr;
+}
+
+void Translate::ArrayElem()
+{
+	triadGen->GenArrayElement();
+}
+
+void Translate::GenArrayAssign()
+{
+	triadGen->GenArrayAssign();
+}
+
+void Translate::StartArray()
+{
+	currentArraySize = 0;
+}
+
+void Translate::EndArray()
+{
+	if (!initList.empty() && !currentArrayName.empty())
+	{
+		Symbol* sym = tree->FindSymbol(currentArrayName);
+		if (sym)
+		{
+			for (size_t i = 0; i < initList.size(); ++i)
+			{
+				triadGen->PushOperand(currentArrayName);
+				triadGen->PushOperand(std::to_string(i));
+				triadGen->GenArrayElement();
+
+				std::string rawVal = initList[i];
+				std::string inner = rawVal;
+				if (!inner.empty() && inner.front() == '(' && inner.back() == ')')
+					inner = inner.substr(1, inner.size() - 2);
+
+				char* end;
+				strtol(inner.c_str(), &end, 0);
+				bool isConst = (*end == '\0' && end != inner.c_str());
+
+				if (sym->type != TYPE___INT64 && isConst)
+				{
+					triadGen->PushOperand(inner);
+					triadGen->GenTypeCast(tree->TypeToString(sym->type));
+				}
+				else
+				{
+					triadGen->PushOperand(rawVal);
+				}
+
+				triadGen->GenArrayAssign();
+			}
+		}
+		initList.clear();
+	}
+	currentArrayName.clear();
+	currentArraySize = 0;
+}
+
+void Translate::SetArraySize(const std::string& lex)
+{
+	char* end;
+	currentArraySize = (int)strtol(lex.c_str(), &end, 0);
+	if (!currentDeclId.empty())
+	{
+		Symbol* sym = tree->FindSymbol(currentDeclId);
+		if (sym)
+		{
+			sym->kind = OBJECT_ARRAY;
+			sym->arraySize = currentArraySize;
+			currentArrayName = currentDeclId;
+			currentArrayType = sym->type;
+		}
+	}
+}
+
+void Translate::GenAdd()
+{
+	triadGen->GenBinary("+");
+}
+
+void Translate::GenSub()
+{
+	triadGen->GenBinary("-");
+}
+
+void Translate::GenMul()
+{
+	triadGen->GenBinary("*");
+}
+
+void Translate::GenDiv()
+{
+	triadGen->GenBinary("/");
+}
+
+void Translate::GenMod()
+{
+	triadGen->GenBinary("%");
+}
+
+void Translate::GenLt()
+{
+	triadGen->GenBinary("<");
+}
+
+void Translate::GenLe()
+{
+	triadGen->GenBinary("<=");
+}
+
+void Translate::GenGt()
+{
+	triadGen->GenBinary(">");
+}
+
+void Translate::GenGe()
+{
+	triadGen->GenBinary(">=");
+}
+
+void Translate::GenEq()
+{
+	triadGen->GenBinary("==");
+}
+
+void Translate::GenNe()
+{
+	triadGen->GenBinary("!=");
+}
+
+void Translate::GenNeg()
+{
+	triadGen->GenUnary("-");
+}
+
+void Translate::GenIf()
+{
+	triadGen->GenIf();
+}
+
+void Translate::GenElse()
+{
+	triadGen->GenElse();
+}
+
+void Translate::GenEndIf()
+{
+	triadGen->GenEndIf();
+}
+
+void Translate::OptimizeTriads()
+{
+	triadGen->SetLocalVars(localVarNames);
+	triadGen->Optimize();
+	localVarNames.clear();
+}
+/* translate.hpp */
+
+#pragma once
+
+#include "tree.hpp"
+#include "triad.hpp"
+#include "scanner.hpp"
+
+
+class Translate
+{
+private:
+	Tree* tree;
+	TScanner* scanner;
+	TriadGenerator* triadGen;
+	TypeData currentDataType;
+	TypeData currentArrayType;
+	bool inDeclaration = false;
+	bool inFunction = false;
+	int currentArraySize;
+	std::string currentArrayName;
+	std::string currentDeclId;
+	Symbol* currentLHS;
+	std::vector<std::string> initList;
+	std::set<std::string> localVarNames;
+
+public:
+	Translate(TScanner* scanner);
+	~Translate();
+	void ExecuteAction(int actionCode, const std::string& lex, int token);
+
+	// Actions
+	void StartDeclareData();
+	void EndDeclareData();
+	void SetId(const std::string& lex);
+	void SetType(int token);
+	void StartFunction(const std::string& lex);
+	void EndFunction();
+	void NewLevel();
+	void ReturnLevel();
+	void FindId(const std::string& lex);
+	void InitValue();
+	void GenIf();
+	void GenElse();
+	void GenEndIf();
+	void GenAssign();
+	void GenArrayAssign();
+	void GenAdd();
+	void GenSub();
+	void GenMul();
+	void GenDiv();
+	void GenMod();
+	void GenLt();
+	void GenLe();
+	void GenGt();
+	void GenGe();
+	void GenEq();
+	void GenNe();
+	void GenNeg();
+	void PushOperand(const std::string& lex);
+	void CallFunc(const std::string& lex);
+	void ArrayElem();
+	void StartArray();
+	void EndArray();
+	void SetArraySize(const std::string& lex);
+
+	// Triad generator
+	TriadGenerator* GetTriadGenerator() { return triadGen; }
+	void OptimizeTriads();
+};
+/* tree.cpp */
+
+#include "tree.hpp"
+
+
+Tree::Tree(TScanner* scanner) : scanner(scanner), currentScope(-1)
+{
+	EnterScope();
+}
+
+Tree::~Tree()
+{
+	while (currentScope >= 0)
+		ExitScope();
+}
+
+void Tree::EnterScope()
+{
+	scopes.push_back({});
+	currentScope++;
+}
+
+void Tree::ExitScope()
+{
+	if (currentScope >= 0)
+	{
+		scopes.pop_back();
+		currentScope--;
+	}
+}
+
+bool Tree::AddSymbol(const std::string& name, TypeObject kind, TypeData type, int arraySize)
+{
+	if (FindSymbolCurrent(name) != nullptr)
+		return false;
+	Symbol sym{ name, kind, type, arraySize };
+	scopes[currentScope][name] = sym;
+	return true;
+}
+
+Symbol* Tree::FindSymbol(const std::string& name)
+{
+	for (int i = currentScope; i >= 0; --i)
+	{
+		auto it = scopes[i].find(name);
+		if (it != scopes[i].end())
+			return &(it->second);
+	}
+	return nullptr;
+}
+
+Symbol* Tree::FindSymbolCurrent(const std::string& name)
+{
+	if (currentScope < 0) return nullptr;
+	auto it = scopes[currentScope].find(name);
+	return (it != scopes[currentScope].end()) ? &(it->second) : nullptr;
+}
+
+TypeData Tree::TokenToType(int token)
+{
+	switch (token)
+	{
+	case TVoid:   return TYPE_VOID;
+	case TInt:    return TYPE_INT;
+	case TShort:  return TYPE_SHORT;
+	case TLong:   return TYPE_LONG;
+	case T__Int64:return TYPE___INT64;
+	case TChar:   return TYPE_CHAR;
+	default:      return TYPE_UNKNOWN;
+	}
+}
+
+std::string Tree::TypeToString(TypeData type)
+{
+	switch (type)
+	{
+	case TYPE_VOID:   return "void";
+	case TYPE_CHAR:   return "char";
+	case TYPE_SHORT:  return "short";
+	case TYPE_INT:    return "int";
+	case TYPE_LONG:   return "long";
+	case TYPE___INT64:return "__int64";
+	default:          return "unknown";
+	}
+}
+/* tree.hpp */
+
+#pragma once
+
+#include "scanner.hpp"
+#include <unordered_map>
+#include <string>
+#include <vector>
+
+
+enum TypeData
+{
+	TYPE_UNKNOWN,
+	TYPE_VOID,
+	TYPE_CHAR,
+	TYPE_SHORT,
+	TYPE_INT,
+	TYPE_LONG,
+	TYPE___INT64
+};
+
+enum TypeObject
+{
+	OBJECT_UNKNOWN,
+	OBJECT_VARIABLE,
+	OBJECT_ARRAY,
+	OBJECT_FUNCTION
+};
+
+struct Symbol
+{
+	std::string name;
+	TypeObject kind;
+	TypeData type;
+	int arraySize;
+};
+
+class Tree
+{
+private:
+	TScanner* scanner;
+	std::vector<std::unordered_map<std::string, Symbol>> scopes;
+	int currentScope;
+
+public:
+	Tree(TScanner* scanner);
+	~Tree();
+
+	void EnterScope();
+	void ExitScope();
+
+	bool AddSymbol(const std::string& name, TypeObject kind, TypeData type, int arraySize = -1);
+	Symbol* FindSymbol(const std::string& name);
+	Symbol* FindSymbolCurrent(const std::string& name);
+
+	static TypeData TokenToType(int token);
+	static std::string TypeToString(TypeData type);
+};
+/* triad.cpp */
+
+#include "triad.hpp"
+#include <iostream>
+#include <cstdlib>
+#include <set>
+
+
+TriadGenerator::TriadGenerator() {}
+
+void TriadGenerator::AddTriad(const std::string& op, const std::string& arg1, const std::string& arg2)
+{
+	triads.push_back({ op, arg1, arg2 });
+}
+
+void TriadGenerator::PushOperand(const std::string& val)
+{
+	valueStack.push_back(val);
+}
+
+std::string TriadGenerator::PopOperand()
+{
+	if (valueStack.empty()) return "";
+	std::string top = valueStack.back();
+	valueStack.pop_back();
+	return top;
+}
+
+void TriadGenerator::GenProc(const std::string& funcName)
+{
+	FuncInfo fi;
+	fi.start = triads.size();
+	fi.end = -1;
+	functions.push_back(fi);
+	AddTriad("proc", funcName);
+}
+
+void TriadGenerator::GenProlog() { AddTriad("prolog"); }
+void TriadGenerator::GenEpilog() { AddTriad("epilog"); }
+void TriadGenerator::GenRet() { AddTriad("ret"); }
+
+void TriadGenerator::GenEndp()
+{
+	if (!functions.empty())
+	{
+		functions.back().end = triads.size();
+	}
+	AddTriad("endp");
+}
+
+void TriadGenerator::GenAssign(const std::string& lhs)
+{
+	std::string rhs = PopOperand();
+	AddTriad("=", lhs, rhs);
+}
+
+void TriadGenerator::GenBinary(const std::string& op)
+{
+	std::string right = PopOperand();
+	std::string left = PopOperand();
+	int idx = triads.size();
+	AddTriad(op, left, right);
+	PushOperand("(" + std::to_string(idx) + ")");
+}
+
+void TriadGenerator::GenUnary(const std::string& op)
+{
+	std::string operand = PopOperand();
+	int idx = triads.size();
+	AddTriad(op, operand);
+	PushOperand("(" + std::to_string(idx) + ")");
+}
+
+void TriadGenerator::GenIf()
+{
+	std::string cond = PopOperand();
+	int idx = triads.size();
+	AddTriad("if", cond, "?");
+	ifStack.push_back(idx);
+}
+
+void TriadGenerator::GenElse()
+{
+	if (ifStack.empty()) return;
+	int ifIdx = ifStack.back();
+	triads[ifIdx].arg2 = std::to_string(triads.size() + 1);
+	int gotoIdx = triads.size();
+	AddTriad("goto", "?");
+	elseStack.push_back(gotoIdx);
+}
+
+void TriadGenerator::GenEndIf()
+{
+	if (!elseStack.empty())
+	{
+		int gotoIdx = elseStack.back();
+		elseStack.pop_back();
+		triads[gotoIdx].arg1 = std::to_string(triads.size());
+	}
+	if (!ifStack.empty())
+	{
+		int ifIdx = ifStack.back();
+		ifStack.pop_back();
+		if (triads[ifIdx].arg2 == "?")
+			triads[ifIdx].arg2 = std::to_string(triads.size());
+	}
+	AddTriad("nop");
+}
+
+void TriadGenerator::GenNop() { AddTriad("nop"); }
+
+void TriadGenerator::GenCall(const std::string& funcName, bool pushResult)
+{
+	int idx = triads.size();
+	AddTriad("call", funcName);
+	if (pushResult)
+		PushOperand("(" + std::to_string(idx) + ")");
+}
+
+void TriadGenerator::GenArrayElement()
+{
+	std::string index = PopOperand();
+	std::string base = PopOperand();
+	int idx = triads.size();
+	AddTriad("index", base, index);
+	PushOperand("(" + std::to_string(idx) + ")");
+}
+
+void TriadGenerator::GenArrayAssign()
+{
+	std::string value = PopOperand();
+	std::string elemRef = PopOperand();
+	AddTriad("=", elemRef, value);
+}
+
+void TriadGenerator::GenTypeCast(const std::string& targetType)
+{
+	std::string operand = PopOperand();
+	int idx = triads.size();
+	AddTriad("cast", targetType, operand);
+	PushOperand("(" + std::to_string(idx) + ")");
+}
+
+// Triad access
+int TriadGenerator::ParseIndexArg(const std::string& arg) const
+{
+	if (arg.empty()) return -1;
+	if (arg.size() >= 3 && arg.front() == '(' && arg.back() == ')')
+	{
+		try { return std::stoi(arg.substr(1, arg.size() - 2)); }
+		catch (...) { return -1; }
+	}
+	char* end;
+	long idx = std::strtol(arg.c_str(), &end, 10);
+	if (*end == '\0' && idx >= 0) return (int)idx;
+	return -1;
+}
+
+void TriadGenerator::SetTriad(int index, const std::string& op, const std::string& arg1, const std::string& arg2)
+{
+	if (index >= 0 && index < (int)triads.size())
+	{
+		triads[index].op = op;
+		triads[index].arg1 = arg1;
+		triads[index].arg2 = arg2;
+	}
+}
+
+bool TriadGenerator::IsConstTriad(int index) const
+{
+	return (index >= 0 && index < (int)triads.size() && triads[index].op == "const");
+}
+
+std::string TriadGenerator::GetConstValue(int index) const
+{
+	if (IsConstTriad(index))
+		return triads[index].arg1;
+	return "";
+}
+
+void TriadGenerator::ReplaceAllReferences(int oldIdx, const std::string& newValue)
+{
+	std::string pattern = "(" + std::to_string(oldIdx) + ")";
+	for (auto& t : triads)
+	{
+		if (t.arg1 == pattern) t.arg1 = newValue;
+		if (t.arg2 == pattern) t.arg2 = newValue;
+	}
+}
+
+void TriadGenerator::DeleteTriad(int index)
+{
+	if (index >= 0 && index < (int)triads.size())
+		triads[index].op = "deleted";
+}
+
+// Optimize
+void TriadGenerator::Optimize()
+{
+	const int MAX_ITER = 100;
+	for (int iter = 0; iter < MAX_ITER; ++iter)
+	{
+		bool anyChange = false;
+		if (ConstantFolding()) anyChange = true;
+		if (ConstantPropagation()) anyChange = true;
+		if (OptimizeIfStatements()) anyChange = true;
+		if (DeadCodeElimination()) anyChange = true;
+		if (RemoveUnreachableCode()) anyChange = true;
+		CleanupNopsAndJumps();
+		if (!anyChange) break;
+	}
+}
+
+bool TriadGenerator::IsConstantOperand(const std::string& operand, long long& value, int depth)
+{
+	if (depth > 50) return false;
+	if (operand.empty()) return false;
+	char* end;
+	value = std::strtoll(operand.c_str(), &end, 0);
+	if (*end == '\0') return true;
+	if (operand.size() >= 3 && operand.front() == '(' && operand.back() == ')')
+	{
+		int idx = std::stoi(operand.substr(1, operand.size() - 2));
+		if (IsConstTriad(idx))
+		{
+			std::string valStr = GetConstValue(idx);
+			return IsConstantOperand(valStr, value, depth + 1);
+		}
+	}
+	return false;
+}
+
+long long TriadGenerator::EvaluateOperation(const std::string& op, long long left, long long right, bool unary)
+{
+	if (unary)
+	{
+		if (op == "-") return -left;
+		return left;
+	}
+	if (op == "+") return left + right;
+	if (op == "-") return left - right;
+	if (op == "*") return left * right;
+	if (op == "/") return left / right;
+	if (op == "%") return left % right;
+	if (op == "<") return left < right;
+	if (op == "<=") return left <= right;
+	if (op == ">") return left > right;
+	if (op == ">=") return left >= right;
+	if (op == "==") return left == right;
+	if (op == "!=") return left != right;
+	return 0;
+}
+
+bool TriadGenerator::ConstantFolding()
+{
+	bool changed = false;
+	for (int i = 0; i < (int)triads.size(); ++i)
+	{
+		std::string op = triads[i].op;
+		if (op == "deleted" || op == "const" || op == "=" || op == "call" ||
+			op == "if" || op == "goto" || op == "nop" || op == "index" ||
+			op == "prolog" || op == "epilog" || op == "ret" || op == "endp" || op == "proc")
+			continue;
+
+		std::string arg1 = triads[i].arg1;
+		std::string arg2 = triads[i].arg2;
+		long long val1, val2;
+		bool isConst1 = IsConstantOperand(arg1, val1, 0);
+		bool isConst2 = arg2.empty() ? true : IsConstantOperand(arg2, val2, 0);
+
+		// РћР±СЂР°Р±РѕС‚РєР° cast вЂ” РѕС‚РґРµР»СЊРЅРѕ Рё РґРѕ РІСЃРµС… РѕСЃС‚Р°Р»СЊРЅС‹С… РїСЂРѕРІРµСЂРѕРє
+		if (op == "cast")
+		{
+			if (isConst2)
+			{
+				ReplaceAllReferences(i, std::to_string(val2));
+				SetTriad(i, "nop");
+				changed = true;
+			}
+			continue;
+		}
+
+		// Р‘РёРЅР°СЂРЅС‹Рµ РѕРїРµСЂР°С†РёРё
+		if (!arg2.empty())
+		{
+			if (isConst1 && isConst2)
+			{
+				long long result = EvaluateOperation(op, val1, val2, false);
+				ReplaceAllReferences(i, std::to_string(result));
+				SetTriad(i, "nop");
+				changed = true;
+				continue;
+			}
+			if (op == "+" && isConst1 && val1 == 0)
+			{
+				ReplaceAllReferences(i, arg2);
+				SetTriad(i, "nop");
+				changed = true;
+			}
+			else if (op == "+" && isConst2 && val2 == 0)
+			{
+				ReplaceAllReferences(i, arg1);
+				SetTriad(i, "nop");
+				changed = true;
+			}
+			else if (op == "*" && ((isConst1 && val1 == 0) || (isConst2 && val2 == 0)))
+			{
+				ReplaceAllReferences(i, "0");
+				SetTriad(i, "nop");
+				changed = true;
+			}
+			else if (op == "*" && isConst1 && val1 == 1)
+			{
+				ReplaceAllReferences(i, arg2);
+				SetTriad(i, "nop");
+				changed = true;
+			}
+			else if (op == "*" && isConst2 && val2 == 1)
+			{
+				ReplaceAllReferences(i, arg1);
+				SetTriad(i, "nop");
+				changed = true;
+			}
+			else if (op == "/" && isConst2 && val2 == 1)
+			{
+				ReplaceAllReferences(i, arg1);
+				SetTriad(i, "nop");
+				changed = true;
+			}
+			else if (op == "-" && arg1 == arg2)
+			{
+				ReplaceAllReferences(i, "0");
+				SetTriad(i, "nop");
+				changed = true;
+			}
+		}
+		else if (arg2.empty() && isConst1 && op == "-")
+		{
+			long long result = EvaluateOperation(op, val1, 0, false);
+			ReplaceAllReferences(i, std::to_string(result));
+			SetTriad(i, "nop");
+			changed = true;
+		}
+	}
+	return changed;
+}
+
+bool TriadGenerator::ConstantPropagation()
+{
+	bool changed = false;
+
+	for (int i = 0; i < (int)triads.size(); ++i)
+	{
+		if (triads[i].op == "deleted") continue;
+		std::string op = triads[i].op;
+		std::string arg1 = triads[i].arg1;
+		std::string arg2 = triads[i].arg2;
+
+		if (op == "=")
+		{
+			std::string lhs = arg1;
+			std::string rhs = arg2;
+			long long constVal;
+			if (IsConstantOperand(rhs, constVal, 0))
+			{
+				knownVars[lhs] = std::to_string(constVal);
+				changed = true;
+				continue;
+			}
+			auto it = knownVars.find(rhs);
+			if (it != knownVars.end())
+			{
+				knownVars[lhs] = it->second;
+				triads[i].arg2 = it->second;
+				changed = true;
+				continue;
+			}
+			knownVars.erase(lhs);
+		}
+		else if (op != "proc" && op != "prolog" && op != "epilog" && op != "ret" && op != "endp" &&
+			op != "nop" && op != "call" && op != "if" && op != "goto")
+		{
+			if (!arg1.empty() && knownVars.find(arg1) != knownVars.end())
+			{
+				std::string newVal = knownVars[arg1];
+				if (newVal != arg1)
+				{
+					triads[i].arg1 = newVal;
+					changed = true;
+					arg1 = newVal;
+				}
+			}
+			if (!arg2.empty() && knownVars.find(arg2) != knownVars.end())
+			{
+				std::string newVal = knownVars[arg2];
+				if (newVal != arg2)
+				{
+					triads[i].arg2 = newVal;
+					changed = true;
+					arg2 = newVal;
+				}
+			}
+		}
+		if (op == "call" || op == "goto")
+		{
+			knownVars.clear();
+		}
+	}
+	return changed;
+}
+
+bool TriadGenerator::OptimizeIfStatements()
+{
+	bool changed = false;
+	for (int i = 0; i < (int)triads.size(); ++i)
+	{
+		if (triads[i].op != "if") continue;
+		std::string cond = triads[i].arg1;
+		std::string targetStr = triads[i].arg2;
+		if (targetStr.empty() || targetStr == "?") continue;
+
+		long long condVal;
+		if (!IsConstantOperand(cond, condVal, 0)) continue;
+
+		int targetIdx = ParseIndexArg(targetStr);
+
+		if (condVal != 0)
+		{
+			SetTriad(i, "nop");
+			changed = true;
+		}
+		else
+		{
+			SetTriad(i, "goto", targetStr);
+			if (targetIdx >= 0)
+			{
+				for (int j = i + 1; j < targetIdx; ++j)
+					SetTriad(j, "nop");
+			}
+			changed = true;
+		}
+	}
+	return changed;
+}
+
+bool TriadGenerator::DeadCodeElimination()
+{
+	bool changed = false;
+	bool localChanged;
+	do
+	{
+		localChanged = false;
+		std::vector<int> refCount(triads.size(), 0);
+		std::set<std::string> usedVars;
+
+		for (int i = 0; i < (int)triads.size(); ++i)
+		{
+			if (triads[i].op == "deleted" || triads[i].op == "nop") continue;
+
+			auto processArg = [&](const std::string& arg, bool isLHS)
+				{
+					if (arg.empty()) return;
+					if (arg.size() >= 3 && arg.front() == '(' && arg.back() == ')')
+					{
+						int idx = ParseIndexArg(arg);
+						if (idx >= 0 && idx < (int)refCount.size()) refCount[idx]++;
+					}
+					if (!isLHS && !arg.empty() && arg.front() != '(')
+					{
+						char* end;
+						long val = std::strtol(arg.c_str(), &end, 10);
+						if (*end != '\0')
+						{
+							usedVars.insert(arg);
+						}
+					}
+				};
+
+			bool isAssignment = (triads[i].op == "=");
+			processArg(triads[i].arg1, isAssignment);
+			processArg(triads[i].arg2, false);
+		}
+
+		for (int i = 0; i < (int)triads.size(); ++i)
+		{
+			std::string op = triads[i].op;
+			if (op == "deleted" || op == "nop") continue;
+
+			if (op != "=" && op != "call" && op != "if" && op != "goto" &&
+				op != "proc" && op != "prolog" && op != "epilog" && op != "ret" && op != "endp")
+			{
+				if (refCount[i] == 0)
+				{
+					SetTriad(i, "nop");
+					localChanged = true;
+				}
+			}
+			else if (op == "=")
+			{
+				std::string lhs = triads[i].arg1;
+				if (!lhs.empty() && lhs.front() != '(' && localVars.count(lhs))
+				{
+					if (usedVars.find(lhs) == usedVars.end())
+					{
+						SetTriad(i, "nop");
+						localChanged = true;
+					}
+				}
+			}
+		}
+
+		if (localChanged) changed = true;
+	} while (localChanged);
+	return changed;
+}
+
+bool TriadGenerator::RemoveUnreachableCode()
+{
+	bool changed = false;
+	for (int funcStart = 0; funcStart < (int)triads.size(); ++funcStart)
+	{
+		if (triads[funcStart].op != "proc") continue;
+
+		std::vector<bool> reachable(triads.size(), false);
+		std::vector<int> stack;
+		stack.push_back(funcStart);
+		reachable[funcStart] = true;
+
+		while (!stack.empty())
+		{
+			int idx = stack.back();
+			stack.pop_back();
+			const std::string& op = triads[idx].op;
+			if (op == "goto")
+			{
+				int target = ParseIndexArg(triads[idx].arg1);
+				if (target >= 0 && target < (int)reachable.size() && !reachable[target])
+				{
+					reachable[target] = true;
+					stack.push_back(target);
+				}
+			}
+			else if (op == "if")
+			{
+				int targetTrue = ParseIndexArg(triads[idx].arg2);
+				if (targetTrue >= 0 && targetTrue < (int)reachable.size() && !reachable[targetTrue])
+				{
+					reachable[targetTrue] = true;
+					stack.push_back(targetTrue);
+				}
+				int nextFalse = idx + 1;
+				if (nextFalse < (int)reachable.size() && !reachable[nextFalse])
+				{
+					reachable[nextFalse] = true;
+					stack.push_back(nextFalse);
+				}
+			}
+			else
+			{
+				int next = idx + 1;
+				if (next < (int)reachable.size() && !reachable[next])
+				{
+					reachable[next] = true;
+					stack.push_back(next);
+				}
+			}
+		}
+
+		int endFunc = funcStart + 1;
+		while (endFunc < (int)triads.size() && triads[endFunc].op != "proc" && triads[endFunc].op != "endp")
+		{
+			if (!reachable[endFunc])
+			{
+				SetTriad(endFunc, "nop");
+				changed = true;
+			}
+			endFunc++;
+		}
+		funcStart = endFunc;
+	}
+	return changed;
+}
+
+void TriadGenerator::CleanupNopsAndJumps()
+{
+	for (int i = 0; i < (int)triads.size(); ++i)
+	{
+		if (triads[i].op == "if")
+		{
+			int targetIdx = ParseIndexArg(triads[i].arg2);
+			if (targetIdx == i + 1)
+			{
+				SetTriad(i, "nop", "", "");
+			}
+		}
+	}
+
+	for (int i = 0; i < (int)triads.size(); ++i)
+	{
+		if (triads[i].op == "goto")
+		{
+			int targetIdx = ParseIndexArg(triads[i].arg1);
+			if (targetIdx == i + 1)
+			{
+				SetTriad(i, "nop", "", "");
+			}
+		}
+	}
+
+	for (int i = 0; i < (int)triads.size(); ++i)
+	{
+		if (triads[i].op == "goto")
+		{
+			int targetIdx = ParseIndexArg(triads[i].arg1);
+			if (targetIdx >= 0 && targetIdx < (int)triads.size() &&
+				triads[targetIdx].op == "nop")
+			{
+				bool otherRefs = false;
+				for (const auto& t : triads)
+				{
+					if (&t == &triads[i]) continue;
+					auto check = [&](const std::string& arg)
+						{
+							int idx = ParseIndexArg(arg);
+							if (idx == targetIdx) otherRefs = true;
+						};
+					check(t.arg1);
+					check(t.arg2);
+					if (otherRefs) break;
+				}
+				if (!otherRefs)
+				{
+					SetTriad(i, "nop", "", "");
+				}
+			}
+		}
+	}
+
+	bool changed = true;
+	while (changed)
+	{
+		changed = false;
+		for (int i = 0; i < (int)triads.size(); ++i)
+		{
+			if (triads[i].op == "if")
+			{
+				int targetIdx = ParseIndexArg(triads[i].arg2);
+				if (targetIdx == i)
+				{
+					SetTriad(i, "nop", "", "");
+					changed = true;
+				}
+			}
+			else if (triads[i].op == "goto")
+			{
+				int targetIdx = ParseIndexArg(triads[i].arg1);
+				if (targetIdx == i + 1)
+				{
+					SetTriad(i, "nop", "", "");
+					changed = true;
+				}
+			}
+		}
+		if (changed)
+		{
+			RemoveNopsWithoutReferences();
+		}
+	}
+
+	// 4. Р¤РёРЅР°Р»СЊРЅРѕРµ СѓРґР°Р»РµРЅРёРµ РІСЃРµС… nop/deleted Р±РµР· СЃСЃС‹Р»РѕРє
+	RemoveNopsWithoutReferences();
+}
+
+void TriadGenerator::RemoveNopsWithoutReferences()
+{
+	std::set<int> referenced;
+
+	for (const auto& t : triads)
+	{
+		auto addBracketedRef = [&](const std::string& arg)
+			{
+				if (arg.size() >= 3 && arg.front() == '(' && arg.back() == ')')
+				{
+					int idx = ParseIndexArg(arg);
+					if (idx >= 0 && idx < (int)triads.size())
+						referenced.insert(idx);
+				}
+			};
+		addBracketedRef(t.arg1);
+		addBracketedRef(t.arg2);
+
+		if (t.op == "goto")
+		{
+			int idx = ParseIndexArg(t.arg1);
+			if (idx >= 0 && idx < (int)triads.size())
+				referenced.insert(idx);
+		}
+		else if (t.op == "if")
+		{
+			int idx = ParseIndexArg(t.arg2);
+			if (idx >= 0 && idx < (int)triads.size())
+				referenced.insert(idx);
+		}
+	}
+
+	std::vector<int> newIndex(triads.size(), -1);
+	std::vector<Triad> newTriads;
+	for (size_t i = 0; i < triads.size(); ++i)
+	{
+		bool remove = (triads[i].op == "nop" || triads[i].op == "deleted")
+			&& referenced.find(i) == referenced.end();
+		if (!remove)
+		{
+			newIndex[i] = newTriads.size();
+			newTriads.push_back(triads[i]);
+		}
+	}
+
+	for (auto& t : newTriads)
+	{
+		auto updateRefOrLabel = [&](std::string& arg, bool bareNumber)
+			{
+				if (arg.empty()) return;
+				bool isRef = (arg.size() >= 3 && arg.front() == '(' && arg.back() == ')');
+				int oldIdx = ParseIndexArg(arg);
+				if (oldIdx >= 0 && oldIdx < (int)newIndex.size() && newIndex[oldIdx] != -1)
+				{
+					int newIdx = newIndex[oldIdx];
+					if (bareNumber)
+						arg = std::to_string(newIdx);
+					else if (isRef)
+						arg = "(" + std::to_string(newIdx) + ")";
+				}
+			};
+
+
+		if (t.op == "goto") updateRefOrLabel(t.arg1, true);
+		else if (t.op == "if") updateRefOrLabel(t.arg2, true);
+
+		auto updateExprArg = [&](std::string& arg)
+			{
+				if (arg.size() >= 3 && arg.front() == '(' && arg.back() == ')')
+				{
+					int oldIdx = ParseIndexArg(arg);
+					if (oldIdx >= 0 && oldIdx < (int)newIndex.size() && newIndex[oldIdx] != -1)
+						arg = "(" + std::to_string(newIndex[oldIdx]) + ")";
+				}
+			};
+
+		updateExprArg(t.arg1);
+		updateExprArg(t.arg2);
+	}
+
+	triads = std::move(newTriads);
+	ifStack.clear();
+	elseStack.clear();
+}
+
+// Debug
+void TriadGenerator::Print()
+{
+	for (size_t i = 0; i < triads.size(); ++i)
+	{
+		const Triad& t = triads[i];
+		if (t.op == "deleted") continue;
+		if (t.op == "if")
+		{
+			std::cout << i << ") if (" << (i + 1) << ") (" << t.arg2 << ")" << std::endl;
+		}
+		else if (t.op == "goto")
+		{
+			std::cout << i << ") goto (" << t.arg1 << ")" << std::endl;
+		}
+		else
+		{
+			std::cout << i << ") " << t.op;
+			if (!t.arg1.empty()) std::cout << " " << t.arg1;
+			if (!t.arg2.empty()) std::cout << ", " << t.arg2;
+			std::cout << std::endl;
+		}
+	}
+}
+
+void TriadGenerator::Clear()
+{
+	triads.clear();
+	valueStack.clear();
+	ifStack.clear();
+	elseStack.clear();
+}
+/* triad.hpp */
+
+#pragma once
+
+#include <vector>
+#include <string>
+#include <set>
+#include <unordered_map>
+
+
+class TriadGenerator
+{
+public:
+	TriadGenerator();
+
+	// Storing triads
+	void AddTriad(const std::string& op, const std::string& arg1 = "", const std::string& arg2 = "");
+	void PushOperand(const std::string& val);
+	std::string PopOperand();
+
+	// Triad generators
+	void GenProc(const std::string& funcName);
+	void GenProlog();
+	void GenEpilog();
+	void GenRet();
+	void GenEndp();
+	void GenAssign(const std::string& lhs);
+	void GenBinary(const std::string& op);
+	void GenUnary(const std::string& op);
+	void GenIf();
+	void GenElse();
+	void GenEndIf();
+	void GenCall(const std::string& funcName, bool pushResult = false);
+	void GenArrayElement();
+	void GenArrayAssign();
+	void GenTypeCast(const std::string& targetType);
+	void GenNop();
+
+	// Helpers
+	int NextTriadIndex() const { return triads.size(); }
+	int GetNextIndex() const { return triads.size(); }
+	int GetLastIndex() const { return triads.empty() ? -1 : triads.size() - 1; }
+	bool IsStackEmpty() const { return valueStack.empty(); }
+	void ClearKnownVars() { knownVars.clear(); }
+	void SetLocalVars(const std::set<std::string>& vars) { localVars = vars; }
+
+	// Optimize
+	void Optimize();
+
+	// Debug
+	void Print();
+	void Clear();
+
+private:
+	struct Triad
+	{
+		std::string op;
+		std::string arg1;
+		std::string arg2;
+	};
+
+	struct FuncInfo
+	{
+		int start;
+		int end;
+	};
+
+	std::vector<Triad> triads;
+	std::vector<FuncInfo> functions;
+	std::vector<std::string> valueStack;
+	std::vector<int> ifStack;
+	std::vector<int> elseStack;
+	std::unordered_map<std::string, std::string> knownVars;
+	std::set<std::string> localVars;
+
+	// Helpers for optimization
+	bool IsConstantOperand(const std::string& operand, long long& value, int depth);
+	long long EvaluateOperation(const std::string& op, long long left, long long right, bool unary);
+	void ReplaceAllReferences(int oldIdx, const std::string& newValue);
+	void DeleteTriad(int index);
+	void SetTriad(int index, const std::string& op, const std::string& arg1 = "", const std::string& arg2 = "");
+	bool IsConstTriad(int index) const;
+	std::string GetConstValue(int index) const;
+	int ParseIndexArg(const std::string& arg) const;
+
+	// Optimization methods
+	bool ConstantFolding();
+	bool ConstantPropagation();
+	bool OptimizeIfStatements();
+	bool DeadCodeElimination();
+	bool RemoveUnreachableCode();
+	void CleanupNopsAndJumps();
+	void RemoveNopsWithoutReferences();
+};

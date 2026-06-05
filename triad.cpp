@@ -6,7 +6,10 @@
 #include <set>
 
 
-TriadGenerator::TriadGenerator() {}
+TriadGenerator::TriadGenerator()
+{
+
+}
 
 void TriadGenerator::AddTriad(const std::string& op, const std::string& arg1, const std::string& arg2)
 {
@@ -35,9 +38,20 @@ void TriadGenerator::GenProc(const std::string& funcName)
 	AddTriad("proc", funcName);
 }
 
-void TriadGenerator::GenProlog() { AddTriad("prolog"); }
-void TriadGenerator::GenEpilog() { AddTriad("epilog"); }
-void TriadGenerator::GenRet() { AddTriad("ret"); }
+void TriadGenerator::GenProlog()
+{
+	AddTriad("prolog");
+}
+
+void TriadGenerator::GenEpilog()
+{
+	AddTriad("epilog");
+}
+
+void TriadGenerator::GenRet()
+{
+	AddTriad("ret");
+}
 
 void TriadGenerator::GenEndp()
 {
@@ -107,7 +121,10 @@ void TriadGenerator::GenEndIf()
 	AddTriad("nop");
 }
 
-void TriadGenerator::GenNop() { AddTriad("nop"); }
+void TriadGenerator::GenNop()
+{
+	AddTriad("nop");
+}
 
 void TriadGenerator::GenCall(const std::string& funcName, bool pushResult)
 {
@@ -268,7 +285,6 @@ bool TriadGenerator::ConstantFolding()
 		bool isConst1 = IsConstantOperand(arg1, val1, 0);
 		bool isConst2 = arg2.empty() ? true : IsConstantOperand(arg2, val2, 0);
 
-		// Обработка cast — отдельно и до всех остальных проверок
 		if (op == "cast")
 		{
 			if (isConst2)
@@ -280,7 +296,6 @@ bool TriadGenerator::ConstantFolding()
 			continue;
 		}
 
-		// Бинарные операции
 		if (!arg2.empty())
 		{
 			if (isConst1 && isConst2)
@@ -667,7 +682,6 @@ void TriadGenerator::CleanupNopsAndJumps()
 		}
 	}
 
-	// 4. Финальное удаление всех nop/deleted без ссылок
 	RemoveNopsWithoutReferences();
 }
 
