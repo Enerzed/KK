@@ -10,6 +10,47 @@
 
 class TriadGenerator
 {
+private:
+	struct Triad
+	{
+		std::string op;
+		std::string arg1;
+		std::string arg2;
+	};
+
+	struct FuncInfo
+	{
+		int start;
+		int end;
+	};
+
+	std::vector<Triad> triads;
+	std::vector<FuncInfo> functions;
+	std::vector<std::string> valueStack;
+	std::vector<int> ifStack;
+	std::vector<int> elseStack;
+	std::unordered_map<std::string, std::string> knownVars;
+	std::set<std::string> localVars;
+
+	// Helpers for optimization
+	bool IsConstantOperand(const std::string& operand, long long& value, int depth);
+	long long EvaluateOperation(const std::string& op, long long left, long long right, bool unary);
+	void ReplaceAllReferences(int oldIdx, const std::string& newValue);
+	void DeleteTriad(int index);
+	void SetTriad(int index, const std::string& op, const std::string& arg1 = "", const std::string& arg2 = "");
+	bool IsConstTriad(int index) const;
+	std::string GetConstValue(int index) const;
+	int ParseIndexArg(const std::string& arg) const;
+
+	// Optimization methods
+	bool ConstantFolding();
+	bool ConstantPropagation();
+	bool OptimizeIfStatements();
+	bool DeadCodeElimination();
+	bool RemoveUnreachableCode();
+	void CleanupNopsAndJumps();
+	void RemoveNopsWithoutReferences();
+
 public:
 	TriadGenerator();
 
@@ -51,44 +92,8 @@ public:
 	void Print();
 	void Clear();
 
-private:
-	struct Triad
-	{
-		std::string op;
-		std::string arg1;
-		std::string arg2;
-	};
+	const std::vector<Triad>& GetTriads() const { return triads; }
+	const std::vector<FuncInfo>& GetFunctions() const { return functions; }
 
-	struct FuncInfo
-	{
-		int start;
-		int end;
-	};
 
-	std::vector<Triad> triads;
-	std::vector<FuncInfo> functions;
-	std::vector<std::string> valueStack;
-	std::vector<int> ifStack;
-	std::vector<int> elseStack;
-	std::unordered_map<std::string, std::string> knownVars;
-	std::set<std::string> localVars;
-
-	// Helpers for optimization
-	bool IsConstantOperand(const std::string& operand, long long& value, int depth);
-	long long EvaluateOperation(const std::string& op, long long left, long long right, bool unary);
-	void ReplaceAllReferences(int oldIdx, const std::string& newValue);
-	void DeleteTriad(int index);
-	void SetTriad(int index, const std::string& op, const std::string& arg1 = "", const std::string& arg2 = "");
-	bool IsConstTriad(int index) const;
-	std::string GetConstValue(int index) const;
-	int ParseIndexArg(const std::string& arg) const;
-
-	// Optimization methods
-	bool ConstantFolding();
-	bool ConstantPropagation();
-	bool OptimizeIfStatements();
-	bool DeadCodeElimination();
-	bool RemoveUnreachableCode();
-	void CleanupNopsAndJumps();
-	void RemoveNopsWithoutReferences();
 };

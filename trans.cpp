@@ -1,11 +1,9 @@
 ﻿/* trans.cpp */
 
 #include <iostream>
-#include <string>
-#include "defs.hpp"
 #include "scanner.hpp"
 #include "ll1.hpp"
-
+#include "gen.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -15,6 +13,9 @@ int main(int argc, char* argv[])
 	if (analyzer.Analyze())
 	{
 		std::cout << "\nSyntax is correct\n";
+		AsmGenerator asmGen(analyzer.GetTranslate()->GetTree(),
+			analyzer.GetTranslate()->GetTriadGenerator());
+		asmGen.Generate("output.asm");
 	}
 	return 0;
 }

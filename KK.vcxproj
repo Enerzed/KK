@@ -123,6 +123,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="gen.cpp" />
     <ClCompile Include="ll1.cpp" />
     <ClCompile Include="scanner.cpp" />
     <ClCompile Include="trans.cpp" />
@@ -132,6 +133,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="defs.hpp" />
+    <ClInclude Include="gen.hpp" />
     <ClInclude Include="ll1.hpp" />
     <ClInclude Include="scanner.hpp" />
     <ClInclude Include="translate.hpp" />

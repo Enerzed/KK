@@ -6,8 +6,7 @@
 #include <cstring>
 
 
-Translate::Translate(TScanner* scanner)
-	: scanner(scanner), inDeclaration(false), currentArraySize(0)
+Translate::Translate(TScanner* scanner) : scanner(scanner), inDeclaration(false), currentArraySize(0), currentStackOffset(0)
 {
 	tree = new Tree(scanner);
 	triadGen = new TriadGenerator();
@@ -129,10 +128,23 @@ void Translate::StartDeclareData()
 	currentDataType = TYPE_UNKNOWN;
 	currentArraySize = 0;
 	initList.clear();
+	lastDeclared.clear();
 }
 
 void Translate::EndDeclareData()
 {
+	if (inFunction)
+	{
+		for (Symbol* sym : lastDeclared)
+		{
+			int elemSize = Tree::TypeSize(sym->type);
+			int totalSize = elemSize * (sym->arraySize > 0 ? sym->arraySize : 1);
+			currentStackOffset -= totalSize;
+			sym->offset = currentStackOffset;
+			sym->isLocal = true;
+		}
+	}
+	lastDeclared.clear();
 	inDeclaration = false;
 	currentArrayName.clear();
 }
@@ -157,6 +169,8 @@ void Translate::SetId(const std::string& lex)
 		{
 			localVarNames.insert(lex);
 		}
+		Symbol* sym = tree->FindSymbolCurrent(lex);
+		if (sym) lastDeclared.push_back(sym);
 	}
 }
 
@@ -176,6 +190,9 @@ void Translate::StartFunction(const std::string& lex)
 	triadGen->GenProlog();
 	triadGen->ClearKnownVars();
 	inFunction = true;
+	currentFunctionName = lex;
+	currentStackOffset = 0;
+	savedStackOffsets.clear();
 	tree->EnterScope();
 }
 
@@ -184,18 +201,30 @@ void Translate::EndFunction()
 	triadGen->GenEpilog();
 	triadGen->GenRet();
 	triadGen->GenEndp();
+	Symbol* funcSym = tree->FindSymbol(currentFunctionName);
+	if (funcSym)
+	{
+		funcSym->frameSize = -currentStackOffset;
+	}
 	inFunction = false;
+	currentFunctionName.clear();
 	tree->ExitScope();
 }
 
 void Translate::NewLevel()
 {
+	savedStackOffsets.push_back(currentStackOffset);
 	tree->EnterScope();
 	triadGen->ClearKnownVars();
 }
 
 void Translate::ReturnLevel()
 {
+	if (!savedStackOffsets.empty())
+	{
+		currentStackOffset = savedStackOffsets.back();
+		savedStackOffsets.pop_back();
+	}
 	tree->ExitScope();
 	triadGen->ClearKnownVars();
 }
@@ -254,7 +283,7 @@ void Translate::GenAssign()
 		rhs = triadGen->PopOperand();
 	}
 
-	triadGen->AddTriad("=", currentLHS->name, rhs);
+	triadGen->AddTriad("=", currentLHS->asmName, rhs);
 	currentLHS = nullptr;
 }
 
@@ -275,7 +304,7 @@ void Translate::PushOperand(const std::string& lex)
 	}
 	Symbol* sym = tree->FindSymbol(lex);
 	if (!sym) scanner->PrintError("Undeclared identifier", lex);
-	triadGen->PushOperand(lex);
+	triadGen->PushOperand(sym->asmName);
 }
 
 void Translate::CallFunc(const std::string& lex)
@@ -284,7 +313,7 @@ void Translate::CallFunc(const std::string& lex)
 	if (!sym) scanner->PrintError("Undeclared identifier", lex);
 
 	bool pushResult = (sym->type != TYPE_VOID);
-	triadGen->GenCall(lex, pushResult);
+	triadGen->GenCall(sym->asmName, pushResult);
 	currentLHS = nullptr;
 }
 
@@ -312,7 +341,7 @@ void Translate::EndArray()
 		{
 			for (size_t i = 0; i < initList.size(); ++i)
 			{
-				triadGen->PushOperand(currentArrayName);
+				triadGen->PushOperand(sym->asmName);
 				triadGen->PushOperand(std::to_string(i));
 				triadGen->GenArrayElement();
 

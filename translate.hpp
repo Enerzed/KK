@@ -23,6 +23,11 @@ private:
 	Symbol* currentLHS;
 	std::vector<std::string> initList;
 	std::set<std::string> localVarNames;
+	// Offset
+	int currentStackOffset;
+	std::vector<int> savedStackOffsets;
+	std::vector<Symbol*> lastDeclared;
+	std::string currentFunctionName;
 
 public:
 	Translate(TScanner* scanner);
@@ -67,4 +72,5 @@ public:
 	// Triad generator
 	TriadGenerator* GetTriadGenerator() { return triadGen; }
 	void OptimizeTriads();
+	Tree* GetTree() { return tree; }
 };
