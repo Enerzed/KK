@@ -72,5 +72,6 @@ public:
 	// Triad generator
 	TriadGenerator* GetTriadGenerator() { return triadGen; }
 	void OptimizeTriads();
+	std::string EvaluateConstant(const std::string& val);
 	Tree* GetTree() { return tree; }
 };

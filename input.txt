@@ -1,35 +1,19 @@
+char a = 1;
 int global;
+short c = -50;
+
 int data[8];
 
-void fill() {
-    int i = 1 + 2 * 3;
-    int j = (i - 5) * 2;
-    data[i - j] = i + j;
-    data[j] = data[i - j] * 2;
-}
+void main()
+{
+    short i = 10;
+    int b = 5;
+    __int64 temp[3] = {1, 2, 3};
 
-void process() {
-    int x = data[3] + data[4];
-    int y = data[(x % 5) + 1];
-    if (x > y) {
-        if (x != y) {
-            global = x - y;
-        } else {
-            global = x + y;
-        }
-    } else {
-        if (y % 2 == 0) {
-            global = y * 2;
-        } else {
-            global = y;
-        }
-    }
-}
-
-void main() {
-    fill();
-    process();
-    if (global > 10) {
-        data[0] = global;
-    }
+    global = i + b;
+    data[0] = global;
+    data[1] = data[0] * 2 + c;
+    data[3] = (data[2] % 3) + 1;
+    temp[2] = data[3] + 100;
+    global = temp[2];
 }

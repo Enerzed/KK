@@ -32,6 +32,7 @@ struct Symbol
 {
 	std::string name;
 	std::string asmName;
+	std::string initValue;
 
 	TypeObject kind;
 	TypeData type;
@@ -46,6 +47,7 @@ class Tree
 {
 private:
 	TScanner* scanner;
+	std::vector<Symbol> symbols;
 	std::vector<std::unordered_map<std::string, Symbol>> scopes;
 	int currentScope;
 	int asmIdCounter;
@@ -61,6 +63,9 @@ public:
 	Symbol* FindSymbol(const std::string& name);
 	Symbol* FindSymbolCurrent(const std::string& name);
 	Symbol* FindSymbolByAsmName(const std::string& asmName);
+
+	void UpdateSymbolByAsmName(const std::string& asmName, int offset, bool isLocal);
+	void UpdateSymbolKindAndSize(const std::string& asmName, TypeObject kind, int arraySize);
 
 	static TypeData TokenToType(int token);
 	static std::string TypeToString(TypeData type);

@@ -50,6 +50,7 @@ private:
 	bool RemoveUnreachableCode();
 	void CleanupNopsAndJumps();
 	void RemoveNopsWithoutReferences();
+	void RebuildFunctions();
 
 public:
 	TriadGenerator();

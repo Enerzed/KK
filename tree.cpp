@@ -48,6 +48,7 @@ bool Tree::AddSymbol(const std::string& name, TypeObject kind, TypeData type, in
 	sym.asmName = buf;
 
 	scopes[currentScope][name] = sym;
+	symbols.push_back(sym);
 	return true;
 }
 
@@ -71,10 +72,33 @@ Symbol* Tree::FindSymbolCurrent(const std::string& name)
 
 Symbol* Tree::FindSymbolByAsmName(const std::string& asmName)
 {
-	for (auto& scope : scopes)
-		for (auto& p : scope)
-			if (p.second.asmName == asmName) return &p.second;
+	for (auto& s : symbols)
+		if (s.asmName == asmName) return &s;
 	return nullptr;
+}
+
+void Tree::UpdateSymbolByAsmName(const std::string& asmName, int offset, bool isLocal)
+{
+	for (auto& s : symbols)
+	{
+		if (s.asmName == asmName)
+		{
+			s.offset = offset;
+			s.isLocal = isLocal;
+			return;
+		}
+	}
+}
+
+void Tree::UpdateSymbolKindAndSize(const std::string& asmName, TypeObject kind, int arraySize)
+{
+	for (auto& s : symbols)
+		if (s.asmName == asmName)
+		{
+			s.kind = kind;
+			s.arraySize = arraySize;
+			return;
+		}
 }
 
 TypeData Tree::TokenToType(int token)

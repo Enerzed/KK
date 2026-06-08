@@ -68,15 +68,14 @@ static const char* ActionName(int code)
 void Translate::ExecuteAction(int actionCode, const std::string& lex, int token)
 {
 	/*
-	 * Debug
 	std::cout << "[ACTION] " << ActionName(actionCode);
 	if (!lex.empty())
 		std::cout << " lex = " << lex << " ";
 	if (token != 0)
 		std::cout << " token = " << token;
 	std::cout << std::endl;
-	 * Debug
-	 */
+	*/
+
 	switch (actionCode)
 	{
 	case T_ACTION_START_DATA:		StartDeclareData(); break;
@@ -142,6 +141,7 @@ void Translate::EndDeclareData()
 			currentStackOffset -= totalSize;
 			sym->offset = currentStackOffset;
 			sym->isLocal = true;
+			tree->UpdateSymbolByAsmName(sym->asmName, sym->offset, sym->isLocal);
 		}
 	}
 	lastDeclared.clear();
@@ -250,9 +250,16 @@ void Translate::InitValue()
 			Symbol* sym = tree->FindSymbol(currentDeclId);
 			if (sym)
 			{
-				currentLHS = sym;
-				triadGen->PushOperand(val);
-				GenAssign();
+				if (!inFunction)
+				{
+					sym->initValue = EvaluateConstant(val);
+				}
+				else
+				{
+					currentLHS = sym;
+					triadGen->PushOperand(val);
+					GenAssign();
+				}
 			}
 		}
 	}
@@ -262,25 +269,27 @@ void Translate::GenAssign()
 {
 	if (!currentLHS) return;
 	std::string rhs = triadGen->PopOperand();
+
+	Symbol* rhsSym = tree->FindSymbolByAsmName(rhs);
+	if (!rhsSym) rhsSym = tree->FindSymbol(rhs);
+	if (rhsSym && rhsSym->kind == OBJECT_ARRAY)
+		scanner->PrintError("Cannot assign array to scalar variable", currentLHS->name);
+
 	TypeData lhsType = currentLHS->type;
-
-	bool isDirect = (rhs.front() != '(');
-	std::string inner = rhs;
-	if (!isDirect && rhs.front() == '(' && rhs.back() == ')')
-		inner = rhs.substr(1, rhs.size() - 2);
-	else
-		inner = rhs;
-
-	char* end;
-	strtol(inner.c_str(), &end, 0);
-	bool isConstNumber = (*end == '\0' && end != inner.c_str());
-	bool isConst = isDirect && isConstNumber;
-
-	if (lhsType != TYPE___INT64 && lhsType != TYPE_UNKNOWN && isConst)
+	if (lhsType != TYPE___INT64 && lhsType != TYPE_UNKNOWN)
 	{
-		triadGen->PushOperand(inner);
-		triadGen->GenTypeCast(tree->TypeToString(lhsType));
-		rhs = triadGen->PopOperand();
+		bool isDirect = (rhs.front() != '(');
+		if (isDirect)
+		{
+			char* end;
+			strtol(rhs.c_str(), &end, 0);
+			if (*end == '\0')
+			{
+				triadGen->PushOperand(rhs);
+				triadGen->GenTypeCast(tree->TypeToString(lhsType));
+				rhs = triadGen->PopOperand();
+			}
+		}
 	}
 
 	triadGen->AddTriad("=", currentLHS->asmName, rhs);
@@ -289,6 +298,14 @@ void Translate::GenAssign()
 
 void Translate::PushOperand(const std::string& lex)
 {
+	Symbol* sym = tree->FindSymbol(lex);
+	if (sym)
+	{
+		// scanner->PrintWarning("PushOperand pushing for " + lex, sym->asmName);
+		triadGen->PushOperand(sym->asmName);
+		return;
+	}
+
 	char* end;
 	long val = strtol(lex.c_str(), &end, 10);
 	if (*end == '\0')
@@ -302,9 +319,8 @@ void Translate::PushOperand(const std::string& lex)
 		triadGen->PushOperand(lex);
 		return;
 	}
-	Symbol* sym = tree->FindSymbol(lex);
-	if (!sym) scanner->PrintError("Undeclared identifier", lex);
-	triadGen->PushOperand(sym->asmName);
+
+	scanner->PrintError("Invalid operand", lex);
 }
 
 void Translate::CallFunc(const std::string& lex)
@@ -384,6 +400,7 @@ void Translate::SetArraySize(const std::string& lex)
 		{
 			sym->kind = OBJECT_ARRAY;
 			sym->arraySize = currentArraySize;
+			tree->UpdateSymbolKindAndSize(sym->asmName, OBJECT_ARRAY, currentArraySize);
 			currentArrayName = currentDeclId;
 			currentArrayType = sym->type;
 		}
@@ -470,4 +487,32 @@ void Translate::OptimizeTriads()
 	triadGen->SetLocalVars(localVarNames);
 	triadGen->Optimize();
 	localVarNames.clear();
+}
+
+std::string Translate::EvaluateConstant(const std::string& val)
+{
+	if (val.empty()) return "0";
+	char* end;
+	long num = strtol(val.c_str(), &end, 10);
+	if (*end == '\0') return val;
+	if (val.front() == '(' && val.back() == ')')
+	{
+		int idx = std::stoi(val.substr(1, val.size() - 2));
+		const auto& triads = triadGen->GetTriads();
+		if (idx >= 0 && idx < (int)triads.size())
+		{
+			const auto& t = triads[idx];
+			if (t.op == "-" && t.arg2.empty())
+			{
+				std::string inner = EvaluateConstant(t.arg1);
+				long v = strtol(inner.c_str(), &end, 10);
+				if (*end == '\0') return std::to_string(-v);
+			}
+			else if (t.op == "cast")
+			{
+				return EvaluateConstant(t.arg2);
+			}
+		}
+	}
+	return "0";
 }

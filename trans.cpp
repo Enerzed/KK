@@ -13,7 +13,7 @@ int main(int argc, char* argv[])
 	if (analyzer.Analyze())
 	{
 		std::cout << "\nSyntax is correct\n";
-		AsmGenerator asmGen(analyzer.GetTranslate()->GetTree(),
+		AsmGenerator asmGen(&scanner, analyzer.GetTranslate()->GetTree(),
 			analyzer.GetTranslate()->GetTriadGenerator());
 		asmGen.Generate("output.asm");
 	}

@@ -224,6 +224,7 @@ void TriadGenerator::Optimize()
 		if (DeadCodeElimination()) anyChange = true;
 		if (RemoveUnreachableCode()) anyChange = true;
 		CleanupNopsAndJumps();
+		RebuildFunctions();
 		if (!anyChange) break;
 	}
 }
@@ -768,6 +769,30 @@ void TriadGenerator::RemoveNopsWithoutReferences()
 	triads = std::move(newTriads);
 	ifStack.clear();
 	elseStack.clear();
+}
+
+void TriadGenerator::RebuildFunctions()
+{
+	functions.clear();
+	for (size_t i = 0; i < triads.size(); ++i)
+	{
+		if (triads[i].op == "proc")
+		{
+			FuncInfo fi;
+			fi.start = i;
+			fi.end = -1;
+			for (size_t j = i + 1; j < triads.size(); ++j)
+			{
+				if (triads[j].op == "endp")
+				{
+					fi.end = j;
+					break;
+				}
+			}
+			if (fi.end != -1)
+				functions.push_back(fi);
+		}
+	}
 }
 
 // Debug
