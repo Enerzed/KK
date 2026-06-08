@@ -23,6 +23,8 @@ private:
 	TriadGenerator* triadGen;
 	std::ostream* out;
 	std::string mainAsmName;
+	std::string raxContent;
+	std::string rbxContent;
 
 	std::unordered_map<int, int> tempOffsets;
 	std::set<int> indexTriads;
@@ -31,6 +33,13 @@ private:
 	void GenerateDataSegmentInit();
 
 	void GenerateFunction(int funcStart, int funcEnd, const std::string& funcName, int frameSize);
+
+	void EmitAssignment(const TriadGenerator::Triad& t, int i, const std::vector<int>& refCount);
+	void EmitBinaryOp(const TriadGenerator::Triad& t, int i, const std::vector<int>& refCount);
+	void EmitUnaryOp(const TriadGenerator::Triad& t, int i, const std::vector<int>& refCount);
+	void EmitCall(const TriadGenerator::Triad& t, int i, const std::vector<int>& refCount);
+	void EmitIndex(const TriadGenerator::Triad& t, int i, const std::vector<int>& refCount);
+	void SaveResult(int i, const std::vector<int>& refCount);
 
 	std::string OperandToStr(const std::string& op, bool asAddress = false);
 	Symbol* FindSymbolForOperand(const std::string& op);
@@ -44,10 +53,6 @@ private:
 	bool IsTempIndex(const std::string& operand, int& idx);
 
 public:
-	AsmGenerator(TScanner* scanner, Tree* tree, TriadGenerator* triadGen)
-		: scanner(scanner), tree(tree), triadGen(triadGen), out(nullptr)
-	{
-	}
-
+	AsmGenerator(TScanner* scanner, Tree* tree, TriadGenerator* triadGen);
 	void Generate(const std::string& filename);
 };

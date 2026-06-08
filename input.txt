@@ -1,19 +1,9 @@
-char a = 1;
-int global;
-short c = -50;
+int g;
 
-int data[8];
-
-void main()
-{
-    short i = 10;
-    int b = 5;
-    __int64 temp[3] = {1, 2, 3};
-
-    global = i + b;
-    data[0] = global;
-    data[1] = data[0] * 2 + c;
-    data[3] = (data[2] % 3) + 1;
-    temp[2] = data[3] + 100;
-    global = temp[2];
+void main() {
+    int a = 10;
+    int b = 20;
+    if (a < b) {
+        g = 1;
+    }
 }

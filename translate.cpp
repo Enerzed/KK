@@ -212,18 +212,12 @@ void Translate::EndFunction()
 
 void Translate::NewLevel()
 {
-	savedStackOffsets.push_back(currentStackOffset);
 	tree->EnterScope();
 	triadGen->ClearKnownVars();
 }
 
 void Translate::ReturnLevel()
 {
-	if (!savedStackOffsets.empty())
-	{
-		currentStackOffset = savedStackOffsets.back();
-		savedStackOffsets.pop_back();
-	}
 	tree->ExitScope();
 	triadGen->ClearKnownVars();
 }
@@ -273,23 +267,6 @@ void Translate::GenAssign()
 	if (!rhsSym) rhsSym = tree->FindSymbol(rhs);
 	if (rhsSym && rhsSym->kind == OBJECT_ARRAY)
 		scanner->PrintError("Cannot assign array to scalar variable", currentLHS->name);
-
-	TypeData lhsType = currentLHS->type;
-	if (lhsType != TYPE___INT64 && lhsType != TYPE_UNKNOWN)
-	{
-		bool isDirect = (rhs.front() != '(');
-		if (isDirect)
-		{
-			char* end;
-			strtol(rhs.c_str(), &end, 0);
-			if (*end == '\0')
-			{
-				triadGen->PushOperand(rhs);
-				triadGen->GenTypeCast(tree->TypeToString(lhsType));
-				rhs = triadGen->PopOperand();
-			}
-		}
-	}
 
 	triadGen->AddTriad("=", currentLHS->asmName, rhs);
 	currentLHS = nullptr;
@@ -348,37 +325,51 @@ void Translate::StartArray()
 
 void Translate::EndArray()
 {
-	if (!initList.empty() && !currentArrayName.empty())
+	if (!currentArrayName.empty())
 	{
 		Symbol* sym = tree->FindSymbol(currentArrayName);
 		if (sym)
 		{
-			for (size_t i = 0; i < initList.size(); ++i)
+			if (!inFunction)
 			{
-				triadGen->PushOperand(sym->asmName);
-				triadGen->PushOperand(std::to_string(i));
-				triadGen->GenArrayElement();
-
-				std::string rawVal = initList[i];
-				std::string inner = rawVal;
-				if (!inner.empty() && inner.front() == '(' && inner.back() == ')')
-					inner = inner.substr(1, inner.size() - 2);
-
-				char* end;
-				strtol(inner.c_str(), &end, 0);
-				bool isConst = (*end == '\0' && end != inner.c_str());
-
-				if (sym->type != TYPE___INT64 && isConst)
+				std::string initValues;
+				for (size_t i = 0; i < initList.size(); ++i)
 				{
-					triadGen->PushOperand(inner);
-					triadGen->GenTypeCast(tree->TypeToString(sym->type));
+					if (!initValues.empty()) initValues += ", ";
+					std::string val = EvaluateConstant(initList[i]);
+					initValues += val;
 				}
-				else
+				sym->initValue = initValues;
+			}
+			else
+			{
+				for (size_t i = 0; i < initList.size(); ++i)
 				{
-					triadGen->PushOperand(rawVal);
-				}
+					triadGen->PushOperand(sym->asmName);
+					triadGen->PushOperand(std::to_string(i));
+					triadGen->GenArrayElement();
 
-				triadGen->GenArrayAssign();
+					std::string rawVal = initList[i];
+					std::string inner = rawVal;
+					if (!inner.empty() && inner.front() == '(' && inner.back() == ')')
+						inner = inner.substr(1, inner.size() - 2);
+
+					char* end;
+					strtol(inner.c_str(), &end, 0);
+					bool isConst = (*end == '\0' && end != inner.c_str());
+
+					if (sym->type != TYPE___INT64 && isConst)
+					{
+						triadGen->PushOperand(inner);
+						triadGen->GenTypeCast(tree->TypeToString(sym->type));
+					}
+					else
+					{
+						triadGen->PushOperand(rawVal);
+					}
+
+					triadGen->GenArrayAssign();
+				}
 			}
 		}
 		initList.clear();

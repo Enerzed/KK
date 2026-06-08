@@ -5,200 +5,37 @@ includelib kernel32.lib
 extern ExitProcess : proc
 
 _BSS SEGMENT
-	PUBLIC global@02
-global@02 DD 1H DUP (?)
-	PUBLIC data@04
-data@04 DD 8H DUP (?)
 _BSS ENDS
 
 _DATA SEGMENT
-	a@01 DB 1
-	c@03 DW -50
+	data@01 DD 10, 20, 30, 40
 _DATA ENDS
 
 _TEXT SEGMENT
 
-main@05 PROC
+main@02 PROC
 	push rbp
 	mov rbp, rsp
-	sub rsp, 160
-	mov rax, 10
-	mov [rbp-8], rax
-	mov rax, [rbp-8]
-	mov [rbp-2], ax
-	mov rax, 5
-	mov [rbp-16], rax
-	mov rax, [rbp-16]
-	mov [rbp-6], eax
-	lea rax, [rbp-30]
-	push rax
-	mov rax, 0
-	mov rbx, 8
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-24], rax
-	mov rax, 1
-	mov rbx, [rbp-24]
-	mov [rbx], rax
-	lea rax, [rbp-30]
-	push rax
-	mov rax, 1
-	mov rbx, 8
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-32], rax
-	mov rax, 2
-	mov rbx, [rbp-32]
-	mov [rbx], rax
-	lea rax, [rbp-30]
+	sub rsp, 32
+	mov rax, offset data@01
 	push rax
 	mov rax, 2
-	mov rbx, 8
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-40], rax
-	mov rax, 3
-	mov rbx, [rbp-40]
-	mov [rbx], rax
-	movsx rax, word ptr [rbp-2]
-	push rax
-	mov eax, [rbp-6]
-	mov rbx, rax
-	pop rax
-	add rax, rbx
-	mov [rbp-48], rax
-	mov rax, [rbp-48]
-	mov [global@02], eax
-	mov rax, offset data@04
-	push rax
-	mov rax, 0
 	mov rbx, 4
 	imul rax, rbx
 	pop rbx
 	add rax, rbx
-	mov [rbp-56], rax
-	mov eax, [global@02]
-	mov rbx, [rbp-56]
-	mov [rbx], rax
-	mov rax, offset data@04
-	push rax
-	mov rax, 1
-	mov rbx, 4
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-64], rax
-	mov rax, offset data@04
-	push rax
-	mov rax, 0
-	mov rbx, 4
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-72], rax
-	mov rbx, [rbp-72]
+	mov [rbp-12], rax
+	mov rbx, [rbp-12]
 	mov rax, [rbx]
-	push rax
-	mov rax, 2
-	mov rbx, rax
-	pop rax
-	imul rax, rbx
-	mov [rbp-80], rax
-	mov rax, [rbp-80]
-	push rax
-	movsx rax, word ptr [c@03]
-	mov rbx, rax
-	pop rax
-	add rax, rbx
-	mov [rbp-88], rax
-	mov rax, [rbp-88]
-	mov rbx, [rbp-64]
-	mov [rbx], rax
-	mov rax, offset data@04
-	push rax
-	mov rax, 3
-	mov rbx, 4
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-96], rax
-	mov rax, offset data@04
-	push rax
-	mov rax, 2
-	mov rbx, 4
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-104], rax
-	mov rbx, [rbp-104]
-	mov rax, [rbx]
-	push rax
-	mov rax, 3
-	mov rbx, rax
-	pop rax
-	cqo
-	idiv rbx
-	mov rax, rdx
-	mov [rbp-112], rax
-	mov rax, [rbp-112]
-	push rax
-	mov rax, 1
-	mov rbx, rax
-	pop rax
-	add rax, rbx
-	mov [rbp-120], rax
-	mov rax, [rbp-120]
-	mov rbx, [rbp-96]
-	mov [rbx], rax
-	lea rax, [rbp-30]
-	push rax
-	mov rax, 2
-	mov rbx, 8
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-128], rax
-	mov rax, offset data@04
-	push rax
-	mov rax, 3
-	mov rbx, 4
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-136], rax
-	mov rbx, [rbp-136]
-	mov rax, [rbx]
-	push rax
-	mov rax, 100
-	mov rbx, rax
-	pop rax
-	add rax, rbx
-	mov [rbp-144], rax
-	mov rax, [rbp-144]
-	mov rbx, [rbp-128]
-	mov [rbx], rax
-	lea rax, [rbp-30]
-	push rax
-	mov rax, 2
-	mov rbx, 8
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-152], rax
-	mov rbx, [rbp-152]
-	mov rax, [rbx]
-	mov [global@02], eax
+	mov [rbp-4], eax
 	mov rsp, rbp
 	pop rbp
 	ret
-main@05 ENDP
+main@02 ENDP
 
 _start PROC
 	sub rsp, 28h
-	call main@05
+	call main@02
 	mov ecx, eax
 	call ExitProcess
 _start ENDP

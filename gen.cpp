@@ -6,6 +6,14 @@
 #include <cstdlib>
 #include <iomanip>
 
+AsmGenerator::AsmGenerator(TScanner* scanner, Tree* tree, TriadGenerator* triadGen)
+{
+	this->scanner = scanner;
+	this->tree = tree;
+	this->triadGen = triadGen;
+	out = nullptr;
+}
+
 void AsmGenerator::Generate(const std::string& filename)
 {
 	std::ofstream fout(filename);
@@ -106,11 +114,13 @@ void AsmGenerator::GenerateDataSegmentInit()
 	{
 		const Symbol& sym = pair.second;
 		if (sym.initValue.empty()) continue;
+
 		if (!hasData)
 		{
 			*out << "_DATA SEGMENT\n";
 			hasData = true;
 		}
+
 		std::string asmName = sym.asmName;
 		int elemSize = Tree::TypeSize(sym.type);
 		std::string dupType;
@@ -122,6 +132,7 @@ void AsmGenerator::GenerateDataSegmentInit()
 		case 8: dupType = "DQ"; break;
 		default: dupType = "DD";
 		}
+
 		*out << "\t" << asmName << " " << dupType << " " << sym.initValue << "\n";
 	}
 	if (hasData) *out << "_DATA ENDS\n\n";
@@ -132,22 +143,32 @@ void AsmGenerator::GenerateFunction(int funcStart, int funcEnd, const std::strin
 	const auto& triads = triadGen->GetTriads();
 	indexTriads.clear();
 	tempOffsets.clear();
+	raxContent.clear();
+
+	std::vector<int> refCount(triads.size(), 0);
+	for (int i = funcStart; i < funcEnd; ++i)
+	{
+		const auto& t = triads[i];
+		auto countArg = [&](const std::string& arg)
+			{
+				int idx = ParseIndex(arg);
+				if (idx >= 0 && idx < (int)refCount.size())
+					refCount[idx]++;
+			};
+		countArg(t.arg1);
+		countArg(t.arg2);
+	}
 
 	std::set<int> usedTriads;
 	for (int i = funcStart; i < funcEnd; ++i)
 	{
-		const auto& t = triads[i];
-		auto check = [&](const std::string& arg)
-			{
-				int idx = ParseIndex(arg);
-				if (idx >= 0) usedTriads.insert(idx);
-			};
-		check(t.arg1);
-		check(t.arg2);
+		if (refCount[i] > 0)
+			usedTriads.insert(i);
 	}
+	int localSize = (frameSize > 0) ? frameSize : 0;
+	int tempBase = -localSize - 8;
+	if (localSize == 0) tempBase = -8;
 
-	int alignedFrame = (frameSize + 15) & ~15;
-	int tempBase = -alignedFrame - 8;
 	for (int idx : usedTriads)
 	{
 		if (idx < funcStart || idx >= funcEnd) continue;
@@ -162,14 +183,17 @@ void AsmGenerator::GenerateFunction(int funcStart, int funcEnd, const std::strin
 	for (int i = funcStart; i < funcEnd; ++i)
 	{
 		const auto& t = triads[i];
-		if (t.op == "goto")
+		if (t.op == "goto" || t.op == "if")
 		{
-			int target = ParseIndex(t.arg1);
-			if (target >= 0) jumpTargets.insert(target);
-		}
-		else if (t.op == "if")
-		{
-			int target = ParseIndex(t.arg2);
+			std::string targetStr = (t.op == "goto") ? t.arg1 : t.arg2;
+			if (targetStr.empty() || targetStr == "?") continue;
+			int target = ParseIndex(targetStr);
+			if (target < 0)
+			{
+				char* end;
+				long val = strtol(targetStr.c_str(), &end, 10);
+				if (*end == '\0' && val >= 0) target = (int)val;
+			}
 			if (target >= 0) jumpTargets.insert(target);
 		}
 	}
@@ -182,6 +206,7 @@ void AsmGenerator::GenerateFunction(int funcStart, int funcEnd, const std::strin
 	if (totalFrame > 0)
 		*out << "\tsub rsp, " << totalFrame << "\n";
 
+	// Code gen
 	for (int i = funcStart; i < funcEnd; ++i)
 	{
 		if (jumpTargets.count(i))
@@ -194,88 +219,43 @@ void AsmGenerator::GenerateFunction(int funcStart, int funcEnd, const std::strin
 
 		if (t.op == "=")
 		{
-			LoadToRAX(t.arg2);
-			StoreFromRAX(t.arg1);
+			EmitAssignment(t, i, refCount);
 		}
 		else if (t.op == "+" || t.op == "-" || t.op == "*" || t.op == "/" || t.op == "%" ||
 			t.op == "<" || t.op == "<=" || t.op == ">" || t.op == ">=" || t.op == "==" || t.op == "!=")
 		{
-			LoadToRAX(t.arg1);
-			*out << "\tpush rax\n";
-			LoadToRAX(t.arg2);
-			*out << "\tmov rbx, rax\n";
-			*out << "\tpop rax\n";
-			if (t.op == "+") *out << "\tadd rax, rbx\n";
-			else if (t.op == "-") *out << "\tsub rax, rbx\n";
-			else if (t.op == "*") *out << "\timul rax, rbx\n";
-			else if (t.op == "/")
-			{
-				*out << "\tcqo\n";
-				*out << "\tidiv rbx\n";
-			}
-			else if (t.op == "%")
-			{
-				*out << "\tcqo\n";
-				*out << "\tidiv rbx\n";
-				*out << "\tmov rax, rdx\n";
-			}
-			else if (t.op == "<") { *out << "\tcmp rax, rbx\n"; *out << "\tsetl al\n"; *out << "\tmovzx eax, al\n"; }
-			else if (t.op == "<=") { *out << "\tcmp rax, rbx\n"; *out << "\tsetle al\n"; *out << "\tmovzx eax, al\n"; }
-			else if (t.op == ">") { *out << "\tcmp rax, rbx\n"; *out << "\tsetg al\n"; *out << "\tmovzx eax, al\n"; }
-			else if (t.op == ">=") { *out << "\tcmp rax, rbx\n"; *out << "\tsetge al\n"; *out << "\tmovzx eax, al\n"; }
-			else if (t.op == "==") { *out << "\tcmp rax, rbx\n"; *out << "\tsete al\n"; *out << "\tmovzx eax, al\n"; }
-			else if (t.op == "!=") { *out << "\tcmp rax, rbx\n"; *out << "\tsetne al\n"; *out << "\tmovzx eax, al\n"; }
-
-			if (tempOffsets.count(i))
-				*out << "\tmov [rbp" << tempOffsets[i] << "], rax\n";
+			EmitBinaryOp(t, i, refCount);
 		}
 		else if (t.op == "-" && t.arg2.empty())
 		{
-			LoadToRAX(t.arg1);
-			*out << "\tneg rax\n";
-			if (tempOffsets.count(i))
-				*out << "\tmov [rbp" << tempOffsets[i] << "], rax\n";
+			EmitUnaryOp(t, i, refCount);
 		}
 		else if (t.op == "cast")
 		{
 			LoadToRAX(t.arg2);
-			if (tempOffsets.count(i))
-				*out << "\tmov [rbp" << tempOffsets[i] << "], rax\n";
+			SaveResult(i, refCount);
 		}
 		else if (t.op == "if")
 		{
 			LoadToRAX(t.arg1);
 			*out << "\tcmp rax, 0\n";
 			*out << "\tje @@L" << t.arg2 << "\n";
+			raxContent.clear();
 		}
 		else if (t.op == "goto")
 		{
-			*out << "\tjmp @@L" << t.arg1 << "\n";
+			int target = ParseIndex(t.arg1);
+			if (target != i + 1)
+				*out << "\tjmp @@L" << t.arg1 << "\n";
+			raxContent.clear();
 		}
 		else if (t.op == "call")
 		{
-			Symbol* callee = tree->FindSymbolByAsmName(t.arg1);
-			if (callee)
-			{
-				*out << "\tcall " << callee->asmName << "\n";
-				if (tempOffsets.count(i))
-					*out << "\tmov [rbp" << tempOffsets[i] << "], rax\n";
-			}
+			EmitCall(t, i, refCount);
 		}
 		else if (t.op == "index")
 		{
-			Symbol* arrSym = tree->FindSymbolByAsmName(t.arg1);
-			int elemSize = arrSym ? Tree::TypeSize(arrSym->type) : 4;
-			LoadEffectiveAddress(t.arg1);
-			*out << "\tpush rax\n";
-			LoadToRAX(t.arg2);
-			*out << "\tmov rbx, " << elemSize << "\n";
-			*out << "\timul rax, rbx\n";
-			*out << "\tpop rbx\n";
-			*out << "\tadd rax, rbx\n";
-			indexTriads.insert(i);
-			if (tempOffsets.count(i))
-				*out << "\tmov [rbp" << tempOffsets[i] << "], rax\n";
+			EmitIndex(t, i, refCount);
 		}
 	}
 
@@ -283,6 +263,104 @@ void AsmGenerator::GenerateFunction(int funcStart, int funcEnd, const std::strin
 	*out << "\tpop rbp\n";
 	*out << "\tret\n";
 	*out << asmFuncName << " ENDP\n\n";
+}
+
+void AsmGenerator::EmitAssignment(const TriadGenerator::Triad& t, int i, const std::vector<int>& refCount)
+{
+	if (IsImmediate(t.arg2))
+	{
+		Symbol* lhsSym = FindSymbolForOperand(t.arg1);
+		int size = lhsSym ? Tree::TypeSize(lhsSym->type) : 8;
+		std::string addr = OperandToStr(t.arg1);
+		std::string imm = t.arg2;
+		if (size == 1)      *out << "\tmov byte ptr " << addr << ", " << imm << "\n";
+		else if (size == 2) *out << "\tmov word ptr " << addr << ", " << imm << "\n";
+		else if (size == 4) *out << "\tmov dword ptr " << addr << ", " << imm << "\n";
+		else                *out << "\tmov qword ptr " << addr << ", " << imm << "\n";
+	}
+	else
+	{
+		LoadToRAX(t.arg2);
+		StoreFromRAX(t.arg1);
+	}
+	raxContent.clear();
+}
+
+void AsmGenerator::EmitBinaryOp(const TriadGenerator::Triad& t, int i, const std::vector<int>& refCount)
+{
+	LoadToRAX(t.arg1);
+	*out << "\tpush rax\n";
+	LoadToRAX(t.arg2);
+	*out << "\tmov rbx, rax\n";
+	*out << "\tpop rax\n";
+
+	if (t.op == "+") *out << "\tadd rax, rbx\n";
+	else if (t.op == "-") *out << "\tsub rax, rbx\n";
+	else if (t.op == "*") *out << "\timul rax, rbx\n";
+	else if (t.op == "/")
+	{
+		*out << "\tcqo\n";
+		*out << "\tidiv rbx\n";
+	}
+	else if (t.op == "%")
+	{
+		*out << "\tcqo\n";
+		*out << "\tidiv rbx\n";
+		*out << "\tmov rax, rdx\n";
+	}
+	else if (t.op == "<") { *out << "\tcmp rax, rbx\n"; *out << "\tsetl al\n"; *out << "\tmovzx eax, al\n"; }
+	else if (t.op == "<=") { *out << "\tcmp rax, rbx\n"; *out << "\tsetle al\n"; *out << "\tmovzx eax, al\n"; }
+	else if (t.op == ">") { *out << "\tcmp rax, rbx\n"; *out << "\tsetg al\n"; *out << "\tmovzx eax, al\n"; }
+	else if (t.op == ">=") { *out << "\tcmp rax, rbx\n"; *out << "\tsetge al\n"; *out << "\tmovzx eax, al\n"; }
+	else if (t.op == "==") { *out << "\tcmp rax, rbx\n"; *out << "\tsete al\n"; *out << "\tmovzx eax, al\n"; }
+	else if (t.op == "!=") { *out << "\tcmp rax, rbx\n"; *out << "\tsetne al\n"; *out << "\tmovzx eax, al\n"; }
+
+	SaveResult(i, refCount);
+}
+
+void AsmGenerator::EmitUnaryOp(const TriadGenerator::Triad& t, int i, const std::vector<int>& refCount)
+{
+	LoadToRAX(t.arg1);
+	*out << "\tneg rax\n";
+	SaveResult(i, refCount);
+}
+
+void AsmGenerator::EmitCall(const TriadGenerator::Triad& t, int i, const std::vector<int>& refCount)
+{
+	Symbol* callee = tree->FindSymbolByAsmName(t.arg1);
+	if (callee)
+	{
+		*out << "\tcall " << callee->asmName << "\n";
+		SaveResult(i, refCount);
+	}
+}
+
+void AsmGenerator::EmitIndex(const TriadGenerator::Triad& t, int i, const std::vector<int>& refCount)
+{
+	Symbol* arrSym = tree->FindSymbolByAsmName(t.arg1);
+	int elemSize = arrSym ? Tree::TypeSize(arrSym->type) : 4;
+	LoadEffectiveAddress(t.arg1);
+	*out << "\tpush rax\n";
+	LoadToRAX(t.arg2);
+	*out << "\tmov rbx, " << elemSize << "\n";
+	*out << "\timul rax, rbx\n";
+	*out << "\tpop rbx\n";
+	*out << "\tadd rax, rbx\n";
+	indexTriads.insert(i);
+	SaveResult(i, refCount);
+}
+
+void AsmGenerator::SaveResult(int i, const std::vector<int>& refCount)
+{
+	if (refCount[i] > 0)
+	{
+		*out << "\tmov [rbp" << tempOffsets[i] << "], rax\n";
+		raxContent = "(" + std::to_string(i) + ")";
+	}
+	else
+	{
+		raxContent = "(" + std::to_string(i) + ")";
+	}
 }
 
 int AsmGenerator::ParseIndex(const std::string& s)

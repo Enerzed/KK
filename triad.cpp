@@ -219,7 +219,7 @@ void TriadGenerator::Optimize()
 	{
 		bool anyChange = false;
 		if (ConstantFolding()) anyChange = true;
-		if (ConstantPropagation()) anyChange = true;
+		//if (ConstantPropagation()) anyChange = true;
 		if (OptimizeIfStatements()) anyChange = true;
 		if (DeadCodeElimination()) anyChange = true;
 		if (RemoveUnreachableCode()) anyChange = true;
