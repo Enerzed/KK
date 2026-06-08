@@ -1,9 +1,66 @@
-int g;
+int global;
+char flag = 1;
+short coeff = -50;
+__int64 bigVal = 0;
+int arr[4] = {1, 2, 3, 4};
+int emptyArray[2];
 
-void main() {
-    int a = 10;
-    int b = 20;
-    if (a < b) {
-        g = 1;
+void init()
+{
+    global = 100;
+    flag = 0;
+    bigVal = 0;
+}
+
+void compute()
+{
+    int i = arr[0] + arr[1];
+    int j = arr[2] * arr[3];
+    if (i > j)
+    {
+        global = i;
+        bigVal = i * coeff;
+    }
+    else
+    {
+        global = j;
+        bigVal = j * coeff;
+    }
+}
+
+void finalize()
+{
+    flag = 1;
+    arr[0] = global;
+}
+
+void main()
+{
+    int a = 5;
+    int b = 10;
+    __int64 temp[3] = {1, 2, 3};
+
+    if (a < b)
+    {
+        init();
+        compute();
+        finalize();
+    }
+    else
+    {
+        arr[0] = 0;
+    }
+
+    if (global > 10)
+    {
+        if (flag == 1)
+        {
+            temp[2] = global;
+            bigVal = temp[2];
+        }
+        else
+        {
+            bigVal = 0;
+        }
     }
 }
