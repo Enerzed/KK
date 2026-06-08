@@ -27,24 +27,19 @@ private:
 	std::unordered_map<int, int> tempOffsets;
 	std::set<int> indexTriads;
 
-	// Генерация сегментов
-	void GenerateDataSegment();        // _BSS (неинициализированные глобальные переменные)
-	void GenerateDataSegmentInit();    // _DATA (инициализированные глобальные переменные)
+	void GenerateDataSegment();
+	void GenerateDataSegmentInit();
 
-	// Генерация кода функций
 	void GenerateFunction(int funcStart, int funcEnd, const std::string& funcName, int frameSize);
 
-	// Вспомогательные методы для работы с операндами
 	std::string OperandToStr(const std::string& op, bool asAddress = false);
 	Symbol* FindSymbolForOperand(const std::string& op);
 	bool IsImmediate(const std::string& s);
 
-	// Загрузка/сохранение с учётом размера типа
 	void LoadToRAX(const std::string& operand);
 	void StoreFromRAX(const std::string& operand);
-	void LoadEffectiveAddress(const std::string& operand);   // для массивов
+	void LoadEffectiveAddress(const std::string& operand);
 
-	// Работа с индексами временных триад
 	int ParseIndex(const std::string& s);
 	bool IsTempIndex(const std::string& operand, int& idx);
 

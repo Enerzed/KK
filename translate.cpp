@@ -141,7 +141,6 @@ void Translate::EndDeclareData()
 			currentStackOffset -= totalSize;
 			sym->offset = currentStackOffset;
 			sym->isLocal = true;
-			tree->UpdateSymbolByAsmName(sym->asmName, sym->offset, sym->isLocal);
 		}
 	}
 	lastDeclared.clear();
@@ -301,7 +300,6 @@ void Translate::PushOperand(const std::string& lex)
 	Symbol* sym = tree->FindSymbol(lex);
 	if (sym)
 	{
-		// scanner->PrintWarning("PushOperand pushing for " + lex, sym->asmName);
 		triadGen->PushOperand(sym->asmName);
 		return;
 	}
@@ -400,7 +398,6 @@ void Translate::SetArraySize(const std::string& lex)
 		{
 			sym->kind = OBJECT_ARRAY;
 			sym->arraySize = currentArraySize;
-			tree->UpdateSymbolKindAndSize(sym->asmName, OBJECT_ARRAY, currentArraySize);
 			currentArrayName = currentDeclId;
 			currentArrayType = sym->type;
 		}
