@@ -5,273 +5,58 @@ includelib kernel32.lib
 extern ExitProcess : proc
 
 _BSS SEGMENT
-	PUBLIC global@01
-global@01 DD 1H DUP (?)
-	PUBLIC emptyArray@06
-emptyArray@06 DD 2H DUP (?)
+	PUBLIC g@01
+g@01 DD 1H DUP (?)
 _BSS ENDS
-
-_DATA SEGMENT
-	flag@02 DB 1
-	coeff@03 DW -50
-	bigVal@04 DQ 0
-	arr@05 DD 1, 2, 3, 4
-_DATA ENDS
 
 _TEXT SEGMENT
 
-init@07 PROC
+main@02 PROC
 	push rbp
 	mov rbp, rsp
-	sub rsp, 16
-	mov dword ptr global@01, 100
-	mov byte ptr flag@02, 0
-	mov qword ptr bigVal@04, 0
-	mov rsp, rbp
-	pop rbp
-	ret
-init@07 ENDP
-
-compute@08 PROC
-	push rbp
-	mov rbp, rsp
-	sub rsp, 96
-	mov rax, offset arr@05
-	push rax
-	mov rax, 0
-	mov rbx, 4
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-16], rax
-	mov rax, offset arr@05
-	push rax
-	mov rax, 1
-	mov rbx, 4
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-24], rax
-	mov rbx, [rbp-16]
-	mov rax, [rbx]
-	push rax
-	mov rbx, [rbp-24]
-	mov rax, [rbx]
-	mov rbx, rax
-	pop rax
-	add rax, rbx
-	mov [rbp-32], rax
-	mov rax, [rbp-32]
-	mov [rbp-4], eax
-	mov rax, offset arr@05
+	sub rsp, 48
+	mov dword ptr [rbp-4], 10
+	mov dword ptr [rbp-8], 20
+	mov eax, [rbp-4]
 	push rax
 	mov rax, 2
-	mov rbx, 4
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-40], rax
-	mov rax, offset arr@05
-	push rax
-	mov rax, 3
-	mov rbx, 4
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-48], rax
-	mov rbx, [rbp-40]
-	mov rax, [rbx]
-	push rax
-	mov rbx, [rbp-48]
-	mov rax, [rbx]
 	mov rbx, rax
 	pop rax
 	imul rax, rbx
-	mov [rbp-56], rax
-	mov rax, [rbp-56]
-	mov [rbp-8], eax
+	mov [rbp-20], rax
+	mov rax, [rbp-20]
+	mov [rbp-12], eax
 	mov eax, [rbp-4]
 	push rax
 	mov eax, [rbp-8]
+	mov rbx, rax
+	pop rax
+	add rax, rbx
+	mov [rbp-28], rax
+	mov rax, [rbp-28]
+	mov [g@01], eax
+	mov eax, [rbp-4]
+	push rax
+	mov rax, 5
 	mov rbx, rax
 	pop rax
 	cmp rax, rbx
 	setg al
 	movzx eax, al
-	mov [rbp-64], rax
-	mov rax, [rbp-64]
+	mov [rbp-36], rax
+	mov rax, [rbp-36]
 	cmp rax, 0
-	je @@L25
-	mov eax, [rbp-4]
-	mov [global@01], eax
-	mov eax, [rbp-4]
-	push rax
-	movsx rax, word ptr [coeff@03]
-	mov rbx, rax
-	pop rax
-	imul rax, rbx
-	mov [rbp-72], rax
-	mov rax, [rbp-72]
-	mov [bigVal@04], rax
-	jmp @@L28
-@@L25:
-	mov eax, [rbp-8]
-	mov [global@01], eax
-	mov eax, [rbp-8]
-	push rax
-	movsx rax, word ptr [coeff@03]
-	mov rbx, rax
-	pop rax
-	imul rax, rbx
-	mov [rbp-80], rax
-	mov rax, [rbp-80]
-	mov [bigVal@04], rax
-@@L28:
+	je @@L11
+	mov dword ptr g@01, 1
+@@L11:
 	mov rsp, rbp
 	pop rbp
 	ret
-compute@08 ENDP
-
-finalize@11 PROC
-	push rbp
-	mov rbp, rsp
-	sub rsp, 16
-	mov byte ptr flag@02, 1
-	mov rax, offset arr@05
-	push rax
-	mov rax, 0
-	mov rbx, 4
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-8], rax
-	mov eax, [global@01]
-	mov rbx, [rbp-8]
-	mov [rbx], rax
-	mov rsp, rbp
-	pop rbp
-	ret
-finalize@11 ENDP
-
-main@12 PROC
-	push rbp
-	mov rbp, rsp
-	sub rsp, 112
-	mov dword ptr [rbp-4], 5
-	mov dword ptr [rbp-8], 10
-	lea rax, [rbp-32]
-	push rax
-	mov rax, 0
-	mov rbx, 8
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-40], rax
-	mov qword ptr [rbp-40], 1
-	lea rax, [rbp-32]
-	push rax
-	mov rax, 1
-	mov rbx, 8
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-48], rax
-	mov qword ptr [rbp-48], 2
-	lea rax, [rbp-32]
-	push rax
-	mov rax, 2
-	mov rbx, 8
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-56], rax
-	mov qword ptr [rbp-56], 3
-	mov eax, [rbp-4]
-	push rax
-	mov eax, [rbp-8]
-	mov rbx, rax
-	pop rax
-	cmp rax, rbx
-	setl al
-	movzx eax, al
-	mov [rbp-64], rax
-	mov rax, [rbp-64]
-	cmp rax, 0
-	je @@L56
-	call init@07
-	call compute@08
-	call finalize@11
-	jmp @@L58
-@@L56:
-	mov rax, offset arr@05
-	push rax
-	mov rax, 0
-	mov rbx, 4
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-72], rax
-	mov qword ptr [rbp-72], 0
-@@L58:
-	mov eax, [global@01]
-	push rax
-	mov rax, 10
-	mov rbx, rax
-	pop rax
-	cmp rax, rbx
-	setg al
-	movzx eax, al
-	mov [rbp-80], rax
-	mov rax, [rbp-80]
-	cmp rax, 0
-	je @@L70
-	movsx rax, byte ptr [flag@02]
-	push rax
-	mov rax, 1
-	mov rbx, rax
-	pop rax
-	cmp rax, rbx
-	sete al
-	movzx eax, al
-	mov [rbp-88], rax
-	mov rax, [rbp-88]
-	cmp rax, 0
-	je @@L68
-	lea rax, [rbp-32]
-	push rax
-	mov rax, 2
-	mov rbx, 8
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-96], rax
-	mov eax, [global@01]
-	mov rbx, [rbp-96]
-	mov [rbx], rax
-	lea rax, [rbp-32]
-	push rax
-	mov rax, 2
-	mov rbx, 8
-	imul rax, rbx
-	pop rbx
-	add rax, rbx
-	mov [rbp-104], rax
-	mov rbx, [rbp-104]
-	mov rax, [rbx]
-	mov [bigVal@04], rax
-	jmp @@L69
-@@L68:
-	mov qword ptr bigVal@04, 0
-@@L69:
-@@L70:
-	mov rsp, rbp
-	pop rbp
-	ret
-main@12 ENDP
+main@02 ENDP
 
 _start PROC
 	sub rsp, 28h
-	call main@12
+	call main@02
 	mov ecx, eax
 	call ExitProcess
 _start ENDP

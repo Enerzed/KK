@@ -245,8 +245,14 @@ void AsmGenerator::GenerateFunction(int funcStart, int funcEnd, const std::strin
 		else if (t.op == "goto")
 		{
 			int target = ParseIndex(t.arg1);
+			if (target < 0)
+			{
+				char* end;
+				long val = strtol(t.arg1.c_str(), &end, 10);
+				if (*end == '\0' && val >= 0) target = (int)val;
+			}
 			if (target != i + 1)
-				*out << "\tjmp @@L" << t.arg1 << "\n";
+				*out << "\tjmp @@L" << target << "\n";
 			raxContent.clear();
 		}
 		else if (t.op == "call")
@@ -445,7 +451,11 @@ void AsmGenerator::LoadToRAX(const std::string& operand)
 	std::string opStr = OperandToStr(operand);
 	if (IsImmediate(opStr))
 	{
-		*out << "\tmov rax, " << opStr << "\n";
+		long val = strtol(opStr.c_str(), nullptr, 10);
+		if (val == 0)
+			*out << "\txor eax, eax\n";
+		else
+			*out << "\tmov rax, " << opStr << "\n";
 		return;
 	}
 
